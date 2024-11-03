@@ -65,7 +65,7 @@
             </div>
         </section>
 
-        <<section>
+        <section>
             <!-- We are PDS -->
         </section>
     </main>
