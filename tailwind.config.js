@@ -8,14 +8,16 @@ export default {
         './storage/framework/views/*.php',
         './resources/views/**/*.blade.php',
     ],
-
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['Arial', ...defaultTheme.fontFamily.sans],
             },
+            backgroundImage: {
+                king: "url('/assets/king.gif')",
+            },
+
         },
     },
-
     plugins: [forms],
 };

@@ -15,174 +15,61 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="font-sans antialiased dark:bg-gray-800">
+<body class="bg-black text-white font-sans antialiased max-w-screen-sm sm:max-w-screen-md md:max-w-screen-lg lg:max-w-screen-xl xl:max-w-screen-2xl 2xl:max-w-[3840px]">
     <header>
 
-        <div class="px-3 py-2 dark:color-slate-800">
+        <div class="px-3 py-2">
             @if (Route::has('login'))
                 <livewire:welcome.navigation />
             @endif
         </div>
 
     </header>
-    <main class="px-3 py-2 text-black transition focus:outline-none dark:text-slate-400 ">
-        <section class="bg-white dark:bg-gray-900">
+    <main class="px-3 py-2 text-black transition focus:outline-none">
+        <section class="bg-king bg-no-repeat bg-cover shadow ">
             <div
                 class="grid max-w-screen-xl px-4 pt-20 pb-8 mx-auto lg:gap-8 xl:gap-0 lg:py-16 lg:grid-cols-12 lg:pt-28">
                 <div class="mr-auto place-self-center lg:col-span-7">
                     <h1
-                        class="max-w-2xl mb-4 text-4xl font-extrabold leading-none tracking-tight md:text-5xl xl:text-6xl dark:text-white">
-                        Building digital <br>products & brands.</h1>
-                    <p class="max-w-2xl mb-6 font-light text-gray-500 lg:mb-8 md:text-lg lg:text-xl dark:text-gray-400">
-                        This free and open-source landing page template was built using the utility classes from
+                        class="max-w-screen-full text-4xl font-extrabold leading-none tracking-tight md:text-5xl xl:text-6xl text-stone-50">
+                            This Weeks King...<br><a href="https://tracker.gg/valorant/profile/riot/zookr3%235720/overview">Zookr3</a></h1>
+                    <p class="max-w-2xl text-xs mb-6 font-light text-stone-200 lg:mb-8 md:text-lg lg:text-sm">
+                        Rise To The Top
                     </p>
-
                 </div>
             </div>
         </section>
-        <section class="bg-gray-50 dark:bg-gray-800">
-            <div class="max-w-screen-xl px-4 py-8 mx-auto space-y-12 lg:space-y-20 lg:py-24 lg:px-6">
-
-                <div class="items-center gap-8 lg:grid lg:grid-cols-2 xl:gap-16">
-                    <div class="text-gray-500 sm:text-lg dark:text-gray-400">
-                        <h2 class="mb-4 text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">Work with
-                            tools
-                            you already use</h2>
-                        <p class="mb-8 font-light lg:text-xl">Deliver great service experiences fast - without the
-                            complexity of
-                            traditional ITSM solutions. Accelerate critical development work, eliminate toil, and deploy
-                            changes
-                            with ease.</p>
-
-                        <ul role="list" class="pt-8 space-y-5 border-t border-gray-200 my-7 dark:border-gray-700">
-                            <li class="flex space-x-3">
-
-                                <svg class="flex-shrink-0 w-5 h-5 text-purple-500 dark:text-purple-400"
-                                    fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                        clip-rule="evenodd"></path>
-                                </svg>
-                                <span
-                                    class="text-base font-medium leading-tight text-gray-900 dark:text-white">Continuous
-                                    integration and deployment</span>
-                            </li>
-                            <li class="flex space-x-3">
-
-                                <svg class="flex-shrink-0 w-5 h-5 text-purple-500 dark:text-purple-400"
-                                    fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                        clip-rule="evenodd"></path>
-                                </svg>
-                                <span
-                                    class="text-base font-medium leading-tight text-gray-900 dark:text-white">Development
-                                    workflow</span>
-                            </li>
-                            <li class="flex space-x-3">
-
-                                <svg class="flex-shrink-0 w-5 h-5 text-purple-500 dark:text-purple-400"
-                                    fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                        clip-rule="evenodd"></path>
-                                </svg>
-                                <span
-                                    class="text-base font-medium leading-tight text-gray-900 dark:text-white">Knowledge
-                                    management</span>
-                            </li>
-                        </ul>
-                        <p class="mb-8 font-light lg:text-xl">Deliver great service experiences fast - without the
-                            complexity of
-                            traditional ITSM solutions.</p>
-                    </div>
-                    <img class="hidden w-full mb-4 rounded-lg lg:mb-0 lg:flex"
-                        src="https://demo.themesberg.com/landwind/images/feature-1.png" alt="dashboard feature image">
-                </div>
-
-                <div class="items-center gap-8 lg:grid lg:grid-cols-2 xl:gap-16">
-                    <img class="hidden w-full mb-4 rounded-lg lg:mb-0 lg:flex"
-                        src="https://demo.themesberg.com/landwind/images/feature-2.png" alt="feature image 2">
-                    <div class="text-gray-500 sm:text-lg dark:text-gray-400">
-                        <h2 class="mb-4 text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">We invest
-                            in
-                            the world’s potential</h2>
-                        <p class="mb-8 font-light lg:text-xl">Deliver great service experiences fast - without the
-                            complexity of traditional ITSM solutions. Accelerate critical development work, eliminate
-                            toil,
-                            and deploy changes with ease.</p>
-
-                        <ul role="list" class="pt-8 space-y-5 border-t border-gray-200 my-7 dark:border-gray-700">
-                            <li class="flex space-x-3">
-
-                                <svg class="flex-shrink-0 w-5 h-5 text-purple-500 dark:text-purple-400"
-                                    fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                        clip-rule="evenodd"></path>
-                                </svg>
-                                <span class="text-base font-medium leading-tight text-gray-900 dark:text-white">Dynamic
-                                    reports and dashboards</span>
-                            </li>
-                            <li class="flex space-x-3">
-
-                                <svg class="flex-shrink-0 w-5 h-5 text-purple-500 dark:text-purple-400"
-                                    fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                        clip-rule="evenodd"></path>
-                                </svg>
-                                <span
-                                    class="text-base font-medium leading-tight text-gray-900 dark:text-white">Templates
-                                    for everyone</span>
-                            </li>
-                            <li class="flex space-x-3">
-
-                                <svg class="flex-shrink-0 w-5 h-5 text-purple-500 dark:text-purple-400"
-                                    fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                        clip-rule="evenodd"></path>
-                                </svg>
-                                <span
-                                    class="text-base font-medium leading-tight text-gray-900 dark:text-white">Development
-                                    workflow</span>
-                            </li>
-                            <li class="flex space-x-3">
-
-                                <svg class="flex-shrink-0 w-5 h-5 text-purple-500 dark:text-purple-400"
-                                    fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                        clip-rule="evenodd"></path>
-                                </svg>
-                                <span
-                                    class="text-base font-medium leading-tight text-gray-900 dark:text-white">Limitless
-                                    business automation</span>
-                            </li>
-                            <li class="flex space-x-3">
-
-                                <svg class="flex-shrink-0 w-5 h-5 text-purple-500 dark:text-purple-400"
-                                    fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                        clip-rule="evenodd"></path>
-                                </svg>
-                                <span
-                                    class="text-base font-medium leading-tight text-gray-900 dark:text-white">Knowledge
-                                    management</span>
-                            </li>
-                        </ul>
-                        <p class="font-light lg:text-xl">Deliver great service experiences fast - without the
-                            complexity of
-                            traditional ITSM solutions.</p>
-                    </div>
+        <section class="bg-black py-16">
+            <div class="text-center mb-8 text-stone-50">
+                <h1 class="text-3xl font-bold">Shop by Category</h1>
+                <p class="text-lg mt-2">Explore our diverse range of services</p>
+            </div>
+            <div class="overflow-x-auto whitespace-nowrap py-4">
+                <div class="flex space-x-4 px-4">
+                    @foreach([
+                        ['title' => 'LSG', 'link' => 'https://tracker.gg/valorant/profile/riot/LSGBale11%23PDS/overview'],
+                        ['title' => 'KGRamzii', 'link' => 'https://tracker.gg/valorant/profile/riot/KGRamzii%23ramzi/overview'],
+                        ['title' => 'Redbttm', 'link' => 'https://tracker.gg/valorant/profile/riot/r3dbttm%231326/overview'],
+                        ['title' => 'Celestial_0', 'link' => 'https://tracker.gg/valorant/profile/riot/Celestial%23for/overview'],
+                        ['title' => 'Thabs', 'link' => 'https://tracker.gg/valorant/profile/riot/Lthabs%237061/overview'],
+                        ['title' => 'Shinigami', 'link' => 'https://tracker.gg/valorant/profile/riot/pds_shinigami%23gr1m/overview'],
+                    ] as $category)
+                        <a href="{{ $category['link'] }}" target="_blank" class="flex-shrink-0">
+                            <div class="bg-gray-800 rounded-lg border border-gray-700 shadow-md p-4 w-48 h-40 flex flex-col items-center justify-center transition-transform duration-300 hover:scale-105">
+                                <img src="{{ asset('public/' . strtolower(str_replace(' ', '-', $category['title'])) . '.png') }}" alt="{{ $category['title'] }}" class="w-full h-24 object-cover mb-2"/>
+                                <span class="text-center text-stone-50">{{ $category['title'] }}</span>
+                            </div>
+                        </a>
+                    @endforeach
                 </div>
             </div>
         </section>
 
+        <<section>
+            <!-- We are PDS -->
+        </section>
     </main>
-    <footer class="bg-white dark:bg-gray-900">
+    <footer class="bg-black">
         <div class="max-w-screen-xl p-4 py-6 mx-auto lg:py-16 md:p-8 lg:p-10">
             <div class="grid grid-cols-2 gap-8 md:grid-cols-3 lg:grid-cols-5">
                 <div>
