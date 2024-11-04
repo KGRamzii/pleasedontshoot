@@ -15,7 +15,8 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="bg-black text-white font-sans antialiased max-w-screen-sm sm:max-w-screen-md md:max-w-screen-lg lg:max-w-screen-xl xl:max-w-screen-2xl 2xl:max-w-[3840px]">
+<body
+    class="bg-black text-white font-sans antialiased max-w-screen-sm sm:max-w-screen-md md:max-w-screen-lg lg:max-w-screen-xl xl:max-w-screen-2xl 2xl:max-w-[3840px]">
     <header>
 
         <div class="px-3 py-2">
@@ -26,37 +27,33 @@
 
     </header>
     <main class="px-3 py-2 text-black transition focus:outline-none">
-        <section class="bg-king bg-no-repeat bg-cover shadow ">
+        <section class="bg-no-repeat bg-cover shadow bg-king ">
             <div
                 class="grid max-w-screen-xl px-4 pt-20 pb-8 mx-auto lg:gap-8 xl:gap-0 lg:py-16 lg:grid-cols-12 lg:pt-28">
                 <div class="mr-auto place-self-center lg:col-span-7">
                     <h1
-                        class="max-w-screen-full text-4xl font-extrabold leading-none tracking-tight md:text-5xl xl:text-6xl text-stone-50">
-                            This Weeks King...<br><a href="https://tracker.gg/valorant/profile/riot/zookr3%235720/overview">Zookr3</a></h1>
-                    <p class="max-w-2xl text-xs mb-6 font-light text-stone-200 lg:mb-8 md:text-lg lg:text-sm">
+                        class="text-4xl font-extrabold leading-none tracking-tight max-w-screen-full md:text-5xl xl:text-6xl text-stone-50">
+                        This Weeks King...<br><a
+                            href="https://tracker.gg/valorant/profile/riot/zookr3%235720/overview">Zookr3</a></h1>
+                    <p class="max-w-2xl mb-6 text-xs font-light text-stone-200 lg:mb-8 md:text-lg lg:text-sm">
                         Rise To The Top
                     </p>
                 </div>
             </div>
         </section>
-        <section class="bg-black py-16">
-            <div class="text-center mb-8 text-stone-50">
+        <section class="py-16 bg-black">
+            <div class="mb-8 text-center text-stone-50">
                 <h1 class="text-3xl font-bold">Shop by Category</h1>
-                <p class="text-lg mt-2">Explore our diverse range of services</p>
+                <p class="mt-2 text-lg">Explore our diverse range of services</p>
             </div>
-            <div class="overflow-x-auto whitespace-nowrap py-4">
-                <div class="flex space-x-4 px-4">
-                    @foreach([
-                        ['title' => 'LSG', 'link' => 'https://tracker.gg/valorant/profile/riot/LSGBale11%23PDS/overview'],
-                        ['title' => 'KGRamzii', 'link' => 'https://tracker.gg/valorant/profile/riot/KGRamzii%23ramzi/overview'],
-                        ['title' => 'Redbttm', 'link' => 'https://tracker.gg/valorant/profile/riot/r3dbttm%231326/overview'],
-                        ['title' => 'Celestial_0', 'link' => 'https://tracker.gg/valorant/profile/riot/Celestial%23for/overview'],
-                        ['title' => 'Thabs', 'link' => 'https://tracker.gg/valorant/profile/riot/Lthabs%237061/overview'],
-                        ['title' => 'Shinigami', 'link' => 'https://tracker.gg/valorant/profile/riot/pds_shinigami%23gr1m/overview'],
-                    ] as $category)
+            <div class="py-4 overflow-x-auto whitespace-nowrap">
+                <div class="flex px-4 space-x-4">
+                    @foreach ([['title' => 'LSG', 'link' => 'https://tracker.gg/valorant/profile/riot/LSGBale11%23PDS/overview'], ['title' => 'KGRamzii', 'link' => 'https://tracker.gg/valorant/profile/riot/KGRamzii%23ramzi/overview'], ['title' => 'Redbttm', 'link' => 'https://tracker.gg/valorant/profile/riot/r3dbttm%231326/overview'], ['title' => 'Celestial_0', 'link' => 'https://tracker.gg/valorant/profile/riot/Celestial%23for/overview'], ['title' => 'Thabs', 'link' => 'https://tracker.gg/valorant/profile/riot/Lthabs%237061/overview'], ['title' => 'Shinigami', 'link' => 'https://tracker.gg/valorant/profile/riot/pds_shinigami%23gr1m/overview']] as $category)
                         <a href="{{ $category['link'] }}" target="_blank" class="flex-shrink-0">
-                            <div class="bg-gray-800 rounded-lg border border-gray-700 shadow-md p-4 w-48 h-40 flex flex-col items-center justify-center transition-transform duration-300 hover:scale-105">
-                                <img src="{{ asset('public/' . strtolower(str_replace(' ', '-', $category['title'])) . '.png') }}" alt="{{ $category['title'] }}" class="w-full h-24 object-cover mb-2"/>
+                            <div
+                                class="flex flex-col items-center justify-center w-48 h-40 p-4 transition-transform duration-300 bg-gray-800 border border-gray-700 rounded-lg shadow-md hover:scale-105">
+                                <img src="{{ asset(strtolower(str_replace(' ', '-', $category['title'])) . '.gif') }}"
+                                    alt="{{ $category['title'] }}" class="object-cover w-full h-24 mb-2" />
                                 <span class="text-center text-stone-50">{{ $category['title'] }}</span>
                             </div>
                         </a>
