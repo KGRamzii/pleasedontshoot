@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
         ], [
             'name' => 'Test User',
             'alias' => 'Zook3r',
+            'discord_id' => 619851421222830103,
             'password' => Hash::make('testpassword'), // Ensure password is hashed
             'rank' => 1,
         ]);
@@ -30,6 +31,7 @@ class DatabaseSeeder extends Seeder
         ], [
             'name' => 'Kagiso',
             'alias' => 'Ramzii',
+            'discord_id' => 768838379865374730,
             'password' => Hash::make('testpassword'), // Ensure password is hashed
             'rank' => 2,
         ]);
@@ -40,6 +42,15 @@ class DatabaseSeeder extends Seeder
             'name' => 'Molefe',
             'password' => Hash::make('testpassword'), // Ensure password is hashed
             'rank' => 3,
+        ]);
+
+        $playerThree = User::firstOrCreate([
+            'email' => 'test4@example.com',
+        ], [
+            'name' => 'LSG',
+            'discord_id' => 478844521266806804,
+            'password' => Hash::make('testpassword'), // Ensure password is hashed
+            'rank' => 4,
         ]);
 
         // Create a challenge between Player One and Player Two
