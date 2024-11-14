@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\ChallengeController;
+use App\Http\Controllers\TeamController;
+use App\Http\Controllers\TeamMemberController;
 use App\Http\Controllers\WebhookController;
 use App\Livewire\ChallengeList;
 use Illuminate\Support\Facades\Route;
@@ -37,7 +39,13 @@ Route::get('/discord/webhook', [WebhookController::class, 'sendToDiscord']);
 // Route::delete('challenges/{id}', [ChallengeController::class, 'destroy']);
 
 
-
+Route::middleware(['auth'])->group(function () {
+    Route::resource('teams', TeamController::class);
+    Route::post('teams/{team}/members', [TeamMemberController::class, 'store'])
+        ->name('team-members.store');
+    Route::delete('teams/{team}/members/{user}', [TeamMemberController::class, 'destroy'])
+        ->name('team-members.destroy');
+});
 
 
 require __DIR__ . '/auth.php';

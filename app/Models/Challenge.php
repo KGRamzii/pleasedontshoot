@@ -32,4 +32,13 @@ class Challenge extends Model
     {
         return $this->hasMany(RankHistory::class);
     }
+
+    //teams
+
+
+    public function team()
+    {
+        return $this->belongsTo(Team::class);
+    }
+
 }

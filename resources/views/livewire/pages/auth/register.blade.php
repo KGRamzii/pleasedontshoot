@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\User;
+use App\Models\Team;
+use App\Services\TeamService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -13,6 +15,7 @@ new #[Layout('layouts.guest')] class extends Component {
     public string $email = '';
     public string $password = '';
     public string $password_confirmation = '';
+    public string $team_name = '';
 
     /**
      * Handle an incoming registration request.
@@ -23,6 +26,7 @@ new #[Layout('layouts.guest')] class extends Component {
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
             'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
+            'team_name' => ['required', 'string', 'max:255', 'unique:teams,name'],
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
@@ -34,7 +38,20 @@ new #[Layout('layouts.guest')] class extends Component {
         $validated['rank'] = $highestRank + 1;
 
         // Create user with rank
-        event(new Registered(($user = User::create($validated))));
+        $user = User::create($validated);
+
+        // Create team
+        $team = Team::create([
+            'user_id' => $user->id,
+            'name' => $this->team_name,
+            'personal_team' => true,
+        ]);
+
+        // Update user with current team
+        $user->current_team_id = $team->id;
+        $user->save();
+
+        event(new Registered($user));
 
         Auth::login($user);
 
@@ -58,6 +75,14 @@ new #[Layout('layouts.guest')] class extends Component {
             <x-text-input wire:model="email" id="email" class="block w-full mt-1" type="email" name="email"
                 required autocomplete="username" />
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
+        </div>
+
+        <!-- Team Name -->
+        <div class="mt-4">
+            <x-input-label for="team_name" :value="__('Team Name')" />
+            <x-text-input wire:model="team_name" id="team_name" class="block w-full mt-1" type="text"
+                name="team_name" required />
+            <x-input-error :messages="$errors->get('team_name')" class="mt-2" />
         </div>
 
         <!-- Password -->

@@ -44,4 +44,43 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(RankHistory::class);
     }
+
+    //Team support
+
+    public function currentTeam()
+    {
+        return $this->belongsTo(Team::class, 'current_team_id');
+    }
+
+    public function ownedTeams()
+    {
+        return $this->hasMany(Team::class);
+    }
+
+    public function teams()
+    {
+        return $this->belongsToMany(Team::class)
+            ->withPivot('role', 'status')
+            ->withTimestamps();
+    }
+
+    public function pendingInvitations()
+    {
+        return $this->teams()->wherePivot('status', 'pending');
+    }
+
+    public function allTeams()
+    {
+        return $this->ownedTeams->merge($this->teams);
+    }
+
+    // protected static function booted()
+    // {
+    //     static::created(function ($user) {
+    //         $user->ownedTeams()->create([
+    //             'name' => $user->name . "'s Team",
+    //             'personal_team' => true,
+    //         ]);
+    //     });
+    // }
 }
