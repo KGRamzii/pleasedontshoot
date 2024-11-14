@@ -28,4 +28,8 @@ class Challenge extends Model
     {
         return $this->belongsTo(User::class, 'witness_id'); // Capitalized 'User'
     }
+    public function rankHistories()
+    {
+        return $this->hasMany(RankHistory::class);
+    }
 }

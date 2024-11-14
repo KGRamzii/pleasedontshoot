@@ -1,0 +1,9 @@
+{
+	"appId": "test.pleasedontshoot",
+	"appName": "PDS",
+	"webDir": "public",
+	"server": {
+		"url": "https://iuygo3jsel.sharedwithexpose.com"
+	},
+	"packageClassList": []
+}

@@ -1,0 +1,17 @@
+{
+  "assets/king.gif": {
+    "file": "assets/king-CAW6xLtG.gif",
+    "src": "assets/king.gif"
+  },
+  "resources/css/app.css": {
+    "file": "assets/app-biK13rGW.css",
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-z-Rg4TxU.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  }
+}

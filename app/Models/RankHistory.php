@@ -17,4 +17,9 @@ class RankHistory extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function challenge()
+    {
+        return $this->belongsTo(Challenge::class);
+    }
 }
