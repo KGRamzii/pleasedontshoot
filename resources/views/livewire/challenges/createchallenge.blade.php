@@ -209,7 +209,7 @@ $wire.on('challenge-exists', (data) => {
     setTimeout(() => showError = false, 3000);
 });" class="container mt-1 bg-white rounded-lg shadow dark:bg-gray-800">
 
-    <h1 class="text-xl font-bold text-gray-900 dark:text-white p-5">Create New Challenge</h1>
+    <h1 class="p-5 text-xl font-bold text-gray-900 dark:text-white">Create New Challenge</h1>
     <div class="p-5 mx-auto">
         <button class="px-4 py-2 font-semibold text-white transition bg-blue-600 rounded hover:bg-blue-700"
             wire:click="$set('step', 1)">
@@ -252,7 +252,8 @@ $wire.on('challenge-exists', (data) => {
                 <h4 class="text-lg font-bold text-gray-800 dark:text-white">Confirm Challenge</h4>
                 <p class="text-gray-600 dark:text-gray-400">Challenger: <strong>{{ Auth::user()->name }}</strong></p>
                 <p class="text-gray-600 dark:text-gray-400">Opponent:
-                    <strong>{{ optional(User::find($opponent_id))->name }}</strong></p>
+                    <strong>{{ optional(User::find($opponent_id))->name }}</strong>
+                </p>
 
                 <div class="mb-3">
                     <label for="witness_id" class="block text-gray-700 dark:text-gray-300">Witness</label>
@@ -307,7 +308,7 @@ $wire.on('challenge-exists', (data) => {
                                         $currentSelectedAgent['name'] === $agent['displayName'];
                                 @endphp
 
-                                <div class="relative cursor-pointer transition-transform hover:-translate-y-1"
+                                <div class="relative transition-transform cursor-pointer hover:-translate-y-1"
                                     wire:click="$set('banned_agent', '{{ $agentData }}')">
                                     <div
                                         class="flex flex-col items-center p-2 transition-all border-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
@@ -326,7 +327,7 @@ $wire.on('challenge-exists', (data) => {
                             @php
                                 $selectedAgent = json_decode($banned_agent, true);
                             @endphp
-                            <div class="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div class="p-3 mt-4 rounded-lg bg-gray-50 dark:bg-gray-700">
                                 <div class="flex items-center space-x-3">
                                     <img src="{{ $selectedAgent['icon'] }}" alt="{{ $selectedAgent['name'] }}"
                                         class="w-12 h-12 rounded-full">
@@ -336,7 +337,7 @@ $wire.on('challenge-exists', (data) => {
                                             {{ $selectedAgent['name'] }}</p>
                                     </div>
                                     <button
-                                        class="ml-auto p-2 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
+                                        class="p-2 ml-auto text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
                                         wire:click="$set('banned_agent', '')">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -359,9 +360,10 @@ $wire.on('challenge-exists', (data) => {
                     @if ($witnessSelected)
                         <button
                             class="px-4 py-2 font-semibold text-white transition bg-green-600 rounded hover:bg-green-700"
-                            wire:click="createChallenge" wire:loading.attr="disabled">
+                            wire:click="createChallenge" wire:loading.attr="disabled"
+                            wire:loading.class="opacity-50 cursor-not-allowed">
                             <span wire:loading.remove>Confirm & Create Challenge</span>
-                            <span wire:loading class="flex items-center space-x-2">
+                            <span wire:loading class="flex items-center space-x-2 ">
                                 <svg class="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none"
                                     viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10"
@@ -370,7 +372,8 @@ $wire.on('challenge-exists', (data) => {
                                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
                                     </path>
                                 </svg>
-                                <span>Creating...</span>
+
+                                <span wire:loading>Creating...</span>
                             </span>
                         </button>
                     @endif
@@ -385,7 +388,7 @@ $wire.on('challenge-exists', (data) => {
             x-transition:leave="transition ease-in duration-200"
             x-transition:leave-start="opacity-100 transform translate-y-0"
             x-transition:leave-end="opacity-0 transform translate-y-2"
-            class="fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg bg-green-500 text-white" style="z-index: 50;">
+            class="fixed px-4 py-3 text-white bg-green-500 rounded-lg shadow-lg bottom-4 right-4" style="z-index: 50;">
             <div class="flex items-center space-x-2">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -400,7 +403,7 @@ $wire.on('challenge-exists', (data) => {
             x-transition:leave="transition ease-in duration-200"
             x-transition:leave-start="opacity-100 transform translate-y-0"
             x-transition:leave-end="opacity-0 transform translate-y-2"
-            class="fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg bg-rose-600 text-white" style="z-index: 50;">
+            class="fixed px-4 py-3 text-white rounded-lg shadow-lg bottom-4 right-4 bg-rose-600" style="z-index: 50;">
             <div class="flex items-center space-x-2">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

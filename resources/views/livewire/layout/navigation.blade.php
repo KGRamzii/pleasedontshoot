@@ -99,10 +99,15 @@ new class extends Component {
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
         </div>
+        <div class="pt-2 pb-3 space-y-1">
+            <x-responsive-nav-link :href="route('challenges')" :active="request()->routeIs('challenges')" wire:navigate>
+                {{ __('Pink Slip') }}
+            </x-responsive-nav-link>
+        </div>
 
         <!-- Responsive Settings Options -->
         <div class="pt-4 pb-1 border-t border-gray-200 dark:border-gray-600">
-            <div class="px-4">
+            <div class="px-4 ">
                 <div class="text-base font-medium text-gray-800 dark:text-gray-200" x-data="{{ json_encode(['name' => auth()->user()->name]) }}"
                     x-text="name" x-on:profile-updated.window="name = $event.detail.name"></div>
                 <div class="text-sm font-medium text-gray-500">{{ auth()->user()->email }}</div>
