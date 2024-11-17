@@ -11,24 +11,41 @@ class TeamController extends Controller
 {
     public function index()
     {
-        return view('teams.index', [
-            'teams' => Auth::user()->allTeams()
-        ]);
+        $user = Auth::user();
+
+        if (!$user) {
+            // Handle unauthenticated user scenario
+            return redirect()->route('login')->with('error', 'You need to be logged in to view this page.');
+        }
+
+        // Fetch the teams for the logged-in user (or all teams if applicable)
+        $teams = Auth::user()->teams; // Or however you are fetching the teams
+        //dd($teams); // Debug the teams to check if it's fetched correctly
+        return view('teams.index', compact('teams')); // Passing teams to the view
     }
+
+    public function create()
+    {
+        return view('teams.create');
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:teams,name'],
         ]);
 
-        $team = Auth::user()->ownedTeams()->create([
+        // Create the team and associate it with the authenticated user
+        $team = Team::create([
             'name' => $validated['name'],
+            'user_id' => Auth::id(),  // Assuming 'user_id' is the foreign key in the 'teams' table
             'personal_team' => false,
         ]);
 
         return redirect()->route('teams.show', $team)
             ->with('success', 'Team created successfully.');
     }
+
 
     public function show(Team $team)
     {

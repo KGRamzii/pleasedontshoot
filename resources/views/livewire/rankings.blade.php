@@ -5,19 +5,55 @@ use App\Models\User;
 use function Livewire\Volt\{state};
 
 new class extends Component {
-    public $rankedUsers;
+    public $teams; // Teams the user belongs to
+    public $selectedTeamId; // Selected team ID
+    public $teamRankings; // Rankings for selected team
 
     public function mount()
     {
-        $this->loadRankedUsers();
+        // Fetch teams the current user belongs to
+        $this->teams = auth()->user()->teams;
+
+        // Check if the user has no teams and handle that case
+        if ($this->teams->isEmpty()) {
+            $this->teamRankings = collect(); // Empty collection for rankings
+            return; // Optionally, show a message or handle UI accordingly
+        }
+
+        // Set the default team and load its rankings
+        $this->selectedTeamId = $this->teams->first()->id;
+        $this->loadTeamRankings(); // Load rankings for the first team
     }
 
-    public function loadRankedUsers()
+    // Load rankings for the selected team
+    public function loadTeamRankings()
     {
-        // Fetch users ordered by rank in ascending order
-        $this->rankedUsers = User::orderBy('rank', 'asc')->get();
+        if ($this->selectedTeamId) {
+            $this->teamRankings = User::select('users.*')
+                ->join('team_user', 'users.id', '=', 'team_user.user_id')
+                ->where('team_user.team_id', $this->selectedTeamId)
+                ->orderBy('team_user.rank', 'asc')
+                ->with([
+                    'teams' => function ($query) {
+                        $query->where('teams.id', $this->selectedTeamId);
+                    },
+                ])
+                ->get()
+                ->map(function ($user) {
+                    $user->rank = $user->teams->firstWhere('id', $this->selectedTeamId)->pivot->rank;
+                    return $user;
+                });
+        }
+    }
+
+    // Handle team switch (update selected team and load rankings)
+    public function switchTeam($teamId)
+    {
+        $this->selectedTeamId = $teamId;
+        $this->loadTeamRankings();
     }
 };
+
 ?>
 
 <div class="container p-4 mx-auto sm:p-4 lg:p-6">
@@ -27,14 +63,30 @@ new class extends Component {
             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
                 Rankings
                 <span class="text-sm font-normal text-gray-500 dark:text-gray-400">
-                    ({{ $rankedUsers->count() }} players)
+                    ({{ $teamRankings->count() }} players)
                 </span>
             </h1>
         </div>
 
+        <!-- Team Tabs -->
+        <div class="px-4 py-2 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+            <div class="flex space-x-4">
+                @foreach ($teams as $team)
+                    <button @class([
+                        'px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white',
+                        'border-b-2 border-blue-500' => $selectedTeamId === $team->id,
+                        'border-transparent' => $selectedTeamId !== $team->id,
+                    ]) wire:click="switchTeam({{ $team->id }})">
+                        {{ $team->name }}
+                    </button>
+                @endforeach
+            </div>
+        </div>
+
+
         <!-- Rankings List -->
         <div class="divide-y divide-gray-200 dark:divide-gray-700">
-            @if ($rankedUsers->isEmpty())
+            @if ($teamRankings->isEmpty())
                 <div class="flex flex-col items-center justify-center py-12">
                     <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -43,7 +95,7 @@ new class extends Component {
                     <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">No ranked players found</p>
                 </div>
             @else
-                @foreach ($rankedUsers as $index => $user)
+                @foreach ($teamRankings as $index => $user)
                     <div
                         class="relative transition-colors duration-150 ease-in-out hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <div class="flex items-center px-2 py-4 space-x-4 sm:px-4 lg:px-6">
@@ -107,17 +159,28 @@ new class extends Component {
 
     <!-- Refresh Button with Loading State -->
     <div class="flex justify-end mt-4">
-        <button wire:click="loadRankedUsers" wire:loading.attr="disabled"
+        <button wire:click="loadTeamRankings" wire:loading.attr="disabled"
             wire:loading.class="opacity-50 cursor-not-allowed"
             class="inline-flex items-center px-4 py-2 text-xs font-semibold tracking-widest text-white uppercase transition duration-150 ease-in-out bg-gray-800 border border-transparent rounded-md dark:bg-gray-200 dark:text-gray-800 hover:bg-gray-700 dark:hover:bg-white focus:bg-gray-700 dark:focus:bg-white active:bg-gray-900 dark:active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
-            <svg wire:loading.class="animate-spin" class="w-4 h-4 mr-2" fill="none" stroke="currentColor"
-                viewBox="0 0 24 24">
+
+            <!-- Loading Spinner (only shows during loading state) -->
+            <svg wire:loading.class="animate-spin" wire:loading class="hidden w-4 h-4 mr-2" fill="none"
+                stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
                 </path>
             </svg>
-            <span wire:loading.remove>Refresh Rankings</span>
-            <span wire:loading>Loading...</span>
+
+            <!-- Default Button Text -->
+            <span wire:loading.remove>
+                Refresh Rankings
+            </span>
+
+            <!-- Loading Text -->
+            {{-- <span wire:loading>
+                Loading...
+            </span> --}}
         </button>
     </div>
+
 </div>

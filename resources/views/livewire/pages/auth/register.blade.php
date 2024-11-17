@@ -26,16 +26,15 @@ new #[Layout('layouts.guest')] class extends Component {
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
             'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
-            'team_name' => ['required', 'string', 'max:255', 'unique:teams,name'],
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
 
         // Get the highest current rank (lowest position)
-        $highestRank = User::max('rank') ?? 0;
+        // $highestRank = User::max('rank') ?? 0;
 
         // Add rank to validated data (one position lower than current lowest)
-        $validated['rank'] = $highestRank + 1;
+        // $validated['rank'] = $highestRank + 1;
 
         // Create user with rank
         $user = User::create($validated);
@@ -47,9 +46,9 @@ new #[Layout('layouts.guest')] class extends Component {
             'personal_team' => true,
         ]);
 
-        // Update user with current team
-        $user->current_team_id = $team->id;
-        $user->save();
+        // // Update user with current team
+        // $user->current_team_id = $team->id;
+        // $user->save();
 
         event(new Registered($user));
 
@@ -77,13 +76,13 @@ new #[Layout('layouts.guest')] class extends Component {
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
-        <!-- Team Name -->
+        {{-- <!-- Team Name -->
         <div class="mt-4">
             <x-input-label for="team_name" :value="__('Team Name')" />
             <x-text-input wire:model="team_name" id="team_name" class="block w-full mt-1" type="text"
                 name="team_name" required />
             <x-input-error :messages="$errors->get('team_name')" class="mt-2" />
-        </div>
+        </div> --}}
 
         <!-- Password -->
         <div class="mt-4">

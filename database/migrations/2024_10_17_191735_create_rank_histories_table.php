@@ -13,6 +13,7 @@ return new class extends Migration {
         Schema::create('rank_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('team_id')->constrained()->onDelete('cascade');
             $table->integer('previous_rank');
             $table->integer('new_rank');
             $table->foreignId('challenge_id')->nullable()->constrained('challenges')->onDelete('cascade'); // Add this line

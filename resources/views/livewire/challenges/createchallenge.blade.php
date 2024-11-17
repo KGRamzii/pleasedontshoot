@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Http;
 
 new class extends Component {
     public $challenger_id;
+    public $team_id = null;
     public $opponent_id = null;
     public $witness_id = null;
     public $banned_agent = '';
@@ -21,6 +22,9 @@ new class extends Component {
     public $loadingAgents = true;
 
     #[state]
+    public ?int $selected_team_id = null;
+
+    #[state]
     public bool $opponentSelected = false;
 
     #[state]
@@ -29,7 +33,27 @@ new class extends Component {
     public function mount()
     {
         $this->challenger_id = Auth::id();
+        $this->initializeTeam();
         $this->loadAgents();
+    }
+
+    private function initializeTeam()
+    {
+        $userTeams = Auth::user()->teams()->select('teams.id')->pluck('id');
+
+        if ($userTeams->count() === 1) {
+            $this->selected_team_id = $userTeams->first();
+        }
+    }
+
+    #[Computed]
+    public function availableTeams()
+    {
+        return \DB::table('teams')
+            ->join('team_user', 'teams.id', '=', 'team_user.team_id')
+            ->where('team_user.user_id', $this->challenger_id)
+            ->select('teams.id', 'teams.name')
+            ->get();
     }
 
     public function loadAgents()
@@ -52,7 +76,6 @@ new class extends Component {
             });
         } catch (\Exception $e) {
             $this->agentsList = [];
-            // Log the error if necessary
         } finally {
             $this->loadingAgents = false;
         }
@@ -61,24 +84,46 @@ new class extends Component {
     #[Computed]
     public function availableOpponents()
     {
+        if (!$this->selected_team_id) {
+            return collect();
+        }
+
         $challenger = Auth::user();
-        return User::where('rank', '>=', $challenger->rank - 1)
-            ->where('rank', '<=', $challenger->rank + 1)
-            ->where('id', '!=', $challenger->id)
+
+        return User::query()
+            ->join('team_user', 'users.id', '=', 'team_user.user_id')
+            ->where('team_user.team_id', $this->selected_team_id)
+            ->where('users.id', '!=', $this->challenger_id)
+            ->select('users.*', 'team_user.rank')
+            ->when($challenger->rank, function ($query) use ($challenger) {
+                return $query->whereBetween('team_user.rank', [$challenger->rank - 1, $challenger->rank + 1]);
+            })
             ->get();
     }
 
     #[Computed]
     public function availableWitnesses()
     {
-        return User::where('id', '!=', $this->challenger_id)
-            ->where('id', '!=', $this->opponent_id)
+        if (!$this->selected_team_id || !$this->opponent_id) {
+            return collect();
+        }
+
+        return User::query()
+            ->join('team_user', 'users.id', '=', 'team_user.user_id')
+            ->where('team_user.team_id', $this->selected_team_id)
+            ->where('users.id', '!=', $this->challenger_id)
+            ->where('users.id', '!=', $this->opponent_id)
+            ->select('users.*')
             ->get();
     }
 
     public function confirmChallenge()
     {
-        $this->step = 2;
+        if ($this->step == 1 && $this->selected_team_id) {
+            $this->step = 2;
+        } elseif ($this->step == 2 && $this->opponent_id) {
+            $this->step = 3;
+        }
     }
 
     public function backToSelection()
@@ -89,6 +134,7 @@ new class extends Component {
     public function createChallenge()
     {
         $this->validate([
+            'selected_team_id' => 'required|exists:teams,id',
             'opponent_id' => 'required|exists:users,id',
             'witness_id' => 'required|exists:users,id',
             'banned_agent' => 'nullable|string',
@@ -116,6 +162,7 @@ new class extends Component {
             'witness_id' => $this->witness_id,
             'banned_agent' => $this->banned_agent,
             'status' => $this->status,
+            'team_id' => $this->selected_team_id,
         ]);
 
         $this->sendToDiscord($challenge);
@@ -127,8 +174,10 @@ new class extends Component {
 
     protected function resetState()
     {
-        $this->reset('opponent_id', 'witness_id', 'banned_agent');
+        $this->reset(['opponent_id', 'witness_id', 'banned_agent']);
         $this->step = 1;
+        $this->opponentSelected = false;
+        $this->witnessSelected = false;
     }
 
     protected function sendToDiscord($challenge)
@@ -193,6 +242,15 @@ new class extends Component {
     {
         $this->witnessSelected = $this->witness_id !== null;
     }
+
+    public function updatedTeamId($teamId)
+    {
+        $this->team_id = $teamId;
+        $this->opponent_id = null;
+        $this->witness_id = null;
+        $this->opponentSelected = false;
+        $this->witnessSelected = false;
+    }
 }; ?>
 
 <div x-data="{
@@ -216,7 +274,52 @@ $wire.on('challenge-exists', (data) => {
             New Challenge
         </button>
 
+        <!-- Success Message -->
+        <div x-show="showSuccess" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0" class="p-4 mt-4 text-sm text-white bg-green-500 rounded-lg">
+            Challenge created successfully!
+        </div>
+
+        <!-- Error Message -->
+        <div x-show="showError" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0" class="p-4 mt-4 text-sm text-white bg-red-500 rounded-lg"
+            x-html="errorMessage">
+        </div>
+
         @if ($step == 1)
+            <div class="mt-3">
+                <h4 class="text-lg font-bold text-gray-800 dark:text-white">Select a Team</h4>
+                @if ($this->availableTeams->isEmpty())
+                    <p class="text-red-500">You are not part of any teams.</p>
+                @else
+                    <div class="mb-3">
+                        <label for="team_id" class="block text-gray-700 dark:text-gray-300">Available Teams</label>
+                        <select
+                            class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:bg-gray-700 dark:text-white"
+                            wire:model.live="selected_team_id">
+                            <option value="">Choose a team</option>
+                            @foreach ($this->availableTeams as $team)
+                                <option value="{{ $team->id }}">{{ $team->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    @if ($selected_team_id)
+                        <button
+                            class="px-4 py-2 font-semibold text-white transition bg-blue-600 rounded hover:bg-blue-700"
+                            wire:click.prevent="confirmChallenge">
+                            Next: Select Opponent
+                        </button>
+                    @endif
+                @endif
+            </div>
+        @endif
+
+        @if ($step == 2)
             <div class="mt-3">
                 <h4 class="text-lg font-bold text-gray-800 dark:text-white">Select an Opponent</h4>
                 @if ($this->availableOpponents->isEmpty())
@@ -243,11 +346,17 @@ $wire.on('challenge-exists', (data) => {
                             Next: Confirm Challenge
                         </button>
                     @endif
+
+                    <button
+                        class="px-4 py-2 font-semibold text-gray-700 transition bg-gray-200 rounded hover:bg-gray-300"
+                        wire:click.prevent="backToSelection">
+                        Back
+                    </button>
                 @endif
             </div>
         @endif
 
-        @if ($step == 2)
+        @if ($step == 3)
             <div class="mt-3">
                 <h4 class="text-lg font-bold text-gray-800 dark:text-white">Confirm Challenge</h4>
                 <p class="text-gray-600 dark:text-gray-400">Challenger: <strong>{{ Auth::user()->name }}</strong></p>
@@ -314,103 +423,32 @@ $wire.on('challenge-exists', (data) => {
                                         class="flex flex-col items-center p-2 transition-all border-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
                                         {{ $isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-transparent' }}">
                                         <img src="{{ $agent['displayIconSmall'] }}" alt="{{ $agent['displayName'] }}"
-                                            class="w-16 h-16 rounded-full object-cover {{ $isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : '' }}">
-                                        <span class="mt-1 text-sm text-center text-gray-700 dark:text-gray-300">
-                                            {{ $agent['displayName'] }}
-                                        </span>
+                                            class="w-16 h-16 rounded-full">
+                                        <span class="mt-1 text-sm text-center">{{ $agent['displayName'] }}</span>
                                     </div>
                                 </div>
                             @endforeach
                         </div>
-
-                        @if (!empty($banned_agent))
-                            @php
-                                $selectedAgent = json_decode($banned_agent, true);
-                            @endphp
-                            <div class="p-3 mt-4 rounded-lg bg-gray-50 dark:bg-gray-700">
-                                <div class="flex items-center space-x-3">
-                                    <img src="{{ $selectedAgent['icon'] }}" alt="{{ $selectedAgent['name'] }}"
-                                        class="w-12 h-12 rounded-full">
-                                    <div>
-                                        <p class="font-medium dark:text-white">Selected Agent:</p>
-                                        <p class="text-sm text-gray-600 dark:text-gray-300">
-                                            {{ $selectedAgent['name'] }}</p>
-                                    </div>
-                                    <button
-                                        class="p-2 ml-auto text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
-                                        wire:click="$set('banned_agent', '')">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M6 18L18 6M6 6l12 12"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        @endif
                     @endif
                 </div>
 
-                <div class="flex justify-between mt-4">
+                <!-- Action Buttons -->
+                <div class="flex gap-4">
                     <button
-                        class="px-4 py-2 font-semibold text-gray-700 transition bg-gray-300 rounded hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
-                        wire:click="backToSelection">
-                        Back
+                        class="px-4 py-2 font-semibold text-white transition bg-green-600 rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        wire:click.prevent="createChallenge" wire:loading.attr="disabled"
+                        {{ !$witnessSelected ? 'disabled' : '' }}>
+                        <span wire:loading.remove>Confirm Challenge</span>
+                        <span wire:loading>Creating...</span>
                     </button>
 
-                    @if ($witnessSelected)
-                        <button
-                            class="px-4 py-2 font-semibold text-white transition bg-green-600 rounded hover:bg-green-700"
-                            wire:click="createChallenge" wire:loading.attr="disabled"
-                            wire:loading.class="opacity-50 cursor-not-allowed">
-                            <span wire:loading.remove>Confirm & Create Challenge</span>
-                            <span wire:loading class="flex items-center space-x-2 ">
-                                <svg class="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none"
-                                    viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10"
-                                        stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor"
-                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                                    </path>
-                                </svg>
-
-                                <span wire:loading>Creating...</span>
-                            </span>
-                        </button>
-                    @endif
+                    <button
+                        class="px-4 py-2 font-semibold text-gray-700 transition bg-gray-200 rounded hover:bg-gray-300"
+                        wire:click.prevent="backToSelection">
+                        Back
+                    </button>
                 </div>
             </div>
         @endif
-
-        <!-- Notifications -->
-        <div x-show="showSuccess" x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="opacity-0 transform translate-y-2"
-            x-transition:enter-end="opacity-100 transform translate-y-0"
-            x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="opacity-100 transform translate-y-0"
-            x-transition:leave-end="opacity-0 transform translate-y-2"
-            class="fixed px-4 py-3 text-white bg-green-500 rounded-lg shadow-lg bottom-4 right-4" style="z-index: 50;">
-            <div class="flex items-center space-x-2">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                <span>Challenge created successfully!</span>
-            </div>
-        </div>
-
-        <div x-show="showError" x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="opacity-0 transform translate-y-2"
-            x-transition:enter-end="opacity-100 transform translate-y-0"
-            x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="opacity-100 transform translate-y-0"
-            x-transition:leave-end="opacity-0 transform translate-y-2"
-            class="fixed px-4 py-3 text-white rounded-lg shadow-lg bottom-4 right-4 bg-rose-600" style="z-index: 50;">
-            <div class="flex items-center space-x-2">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <span x-text="errorMessage || 'A Challenge has already been made...'"></span>
-            </div>
-        </div>
     </div>
 </div>

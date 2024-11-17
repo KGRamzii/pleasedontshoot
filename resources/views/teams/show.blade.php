@@ -11,4 +11,5 @@
             <livewire:team-members :team="$team" />
         </div>
     </div>
+
 </x-app-layout>

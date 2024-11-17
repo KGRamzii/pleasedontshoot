@@ -13,6 +13,8 @@ class Team extends Model
         'name',
         'user_id',
         'personal_team',
+        'status',
+        'role',
     ];
 
     protected $casts = [
@@ -22,8 +24,18 @@ class Team extends Model
     public function users()
     {
         return $this->belongsToMany(User::class)
-            ->withPivot('role', 'status')
+            ->withPivot('role', 'status', 'rank')
+            //->orderBy('pivot.rank')
             ->withTimestamps();
+    }
+    public function hasUser($user)
+    {
+        return $this->users()->where('user_id', $user->id)->exists();
+    }
+
+    public function teams()
+    {
+        return $this->belongsToMany(Team::class)->withPivot('role', 'status', 'created_at', 'updated_at');
     }
 
     public function inviteUser(User $user)

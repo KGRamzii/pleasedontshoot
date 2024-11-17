@@ -27,9 +27,15 @@
                                         <span class="text-sm text-gray-500">Personal Team</span>
                                     @endif
                                 </div>
-                                <a href="{{ route('teams.show', $team) }}" class="text-blue-600 hover:text-blue-800">
+                                <a href="{{ route('teams.show', $team->id) }}"
+                                    class="text-blue-600 hover:text-blue-800">
                                     View Team
                                 </a>
+                            </div>
+                            <div class="py-12">
+                                <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+                                    <livewire:membershipstatus :team="$team" />
+                                </div>
                             </div>
                         @endforeach
                     </div>

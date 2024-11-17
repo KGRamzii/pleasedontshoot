@@ -5,6 +5,9 @@
 use Livewire\Volt\Component;
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\TeamInvitation;
 
 new class extends Component {
     public Team $team;
@@ -25,21 +28,42 @@ new class extends Component {
 
         $user = User::where('email', $this->email)->first();
 
-        if ($this->team->users->contains($user)) {
+        if (
+            $this->team
+                ->users()
+                ->where('user_id', $user->id)
+                ->exists()
+        ) {
             $this->addError('email', 'User is already a member of this team.');
             return;
         }
 
-        $this->team->users()->attach($user, ['role' => $this->role]);
+        // Get highest rank in the team
+        $highestRank = $this->team->users()->where('status', 'approved')->max('rank') ?? 0;
+
+        // Create pending invitation with next rank
+        $this->team->users()->attach($user, [
+            'role' => $this->role,
+            'status' => 'pending',
+            'rank' => $highestRank + 1,
+        ]);
+
+        // Send notification to user
+        Notification::send($user, new TeamInvitation($this->team));
 
         $this->email = '';
         $this->role = 'member';
 
-        $this->dispatch('member-added');
+        $this->dispatch('member-invited');
     }
 
     public function removeMember(User $user)
     {
+        if (!$this->isAdmin()) {
+            $this->addError('remove', 'Only team admins can remove members.');
+            return;
+        }
+
         if ($this->team->user_id === $user->id) {
             $this->addError('remove', 'Team owner cannot be removed.');
             return;
@@ -49,12 +73,40 @@ new class extends Component {
 
         $this->dispatch('member-removed');
     }
+
+    public function isAdmin(): bool
+    {
+        $teamUser = $this->team->users()->where('user_id', Auth::id())->where('status', 'approved')->first();
+
+        return $teamUser?->pivot?->role === 'admin';
+    }
+
+    public function with(): array
+    {
+        return [
+            'members' => $this->team
+                ->users()
+                ->orderBy('rank')
+                ->get()
+                ->map(function ($user) {
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'role' => $user->pivot->role,
+                        'status' => $user->pivot->status,
+                        'rank' => $user->pivot->rank,
+                        'isOwner' => $this->team->user_id === $user->id,
+                    ];
+                }),
+        ];
+    }
 }; ?>
 
 <div>
     <!-- Add Member Form -->
     <div class="p-4 bg-white rounded-lg shadow">
-        <h3 class="text-lg font-medium">Add Team Member</h3>
+        <h3 class="text-lg font-medium">Invite Team Member</h3>
         <form wire:submit="addMember" class="mt-4 space-y-4">
             <div>
                 <x-input-label for="email" value="Email" />
@@ -73,7 +125,7 @@ new class extends Component {
             </div>
 
             <x-primary-button>
-                Add Member
+                Send Invitation
             </x-primary-button>
         </form>
     </div>
@@ -81,16 +133,22 @@ new class extends Component {
     <!-- Team Members List -->
     <div class="mt-6">
         <h3 class="text-lg font-medium">Team Members</h3>
+        <x-input-error :messages="$errors->get('remove')" class="mt-2" />
         <div class="mt-4 space-y-4">
-            @foreach ($team->users as $member)
+            @foreach ($members as $member)
                 <div class="flex items-center justify-between p-4 bg-white rounded-lg shadow">
                     <div>
-                        <div class="font-medium">{{ $member->name }}</div>
-                        <div class="text-sm text-gray-500">{{ $member->email }}</div>
-                        <div class="text-sm text-gray-500">Role: {{ $member->pivot->role }}</div>
+                        <div class="font-medium">{{ $member['name'] }}</div>
+                        <div class="text-sm text-gray-500">{{ $member['email'] }}</div>
+                        <div class="text-sm text-gray-500">Role: {{ $member['role'] }}</div>
+                        <div
+                            class="text-sm {{ $member['status'] === 'pending' ? 'text-yellow-500' : 'text-green-500' }}">
+                            Status: {{ ucfirst($member['status']) }}
+                        </div>
+                        <div class="text-sm text-gray-500">Rank: {{ $member['rank'] }}</div>
                     </div>
-                    @if ($team->user_id !== $member->id)
-                        <button wire:click="removeMember({{ $member->id }})" class="text-red-600 hover:text-red-800">
+                    @if (!$member['isOwner'] && $this->isAdmin())
+                        <button wire:click="removeMember({{ $member['id'] }})" class="text-red-600 hover:text-red-800">
                             Remove
                         </button>
                     @endif

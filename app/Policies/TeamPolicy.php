@@ -67,22 +67,23 @@ class TeamPolicy
     /**
      * Determine if the user can add team members.
      */
-    public function addTeamMember(User $user, Team $team): bool
+    public function addMember(User $user, Team $team)
     {
-        return $team->user_id === $user->id ||
-            $team->users()->where('user_id', $user->id)
-                ->where('role', 'admin')
-                ->exists();
+        // Only allow if the user is an admin of the team
+        return $team->users()->where('user_id', $user->id)->where('role', 'admin')->exists();
     }
 
     /**
-     * Determine if the user can remove team members.
+     * Determine if the user can remove a member from the team.
      */
-    public function removeTeamMember(User $user, Team $team): bool
+    public function removeMember(User $user, Team $team, User $removingUser)
     {
-        return $team->user_id === $user->id ||
-            $team->users()->where('user_id', $user->id)
-                ->where('role', 'admin')
-                ->exists();
+        // Admins can remove any member
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        // Users can only remove themselves from the team
+        return $user->id === $removingUser->id;
     }
 }
