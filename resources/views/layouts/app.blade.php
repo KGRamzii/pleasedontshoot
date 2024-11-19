@@ -8,7 +8,7 @@
 
     <title>{{ config('app.name', 'PDS') }}</title>
 
-    <link rel="icon" href="{{ asset('logo/pds.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ asset('storage/Logo/pds.svg') }}" type="image/svg+xml">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
