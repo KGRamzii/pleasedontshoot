@@ -35,7 +35,8 @@ console_command = 'php /var/www/html/artisan tinker'
 
 [mounts]
     source = "storage_dir"
-    destination = "/var/www/html/storage"
+   destination = "/var/www/html/storage"
+   initial_size = "1GB"
 
 [deploy]
     #release_command = "php artisan migrate --force"

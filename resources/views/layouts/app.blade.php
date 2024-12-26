@@ -8,7 +8,7 @@
 
     <title>{{ config('app.name', 'PDS') }}</title>
 
-    <link rel="icon" href="{{ asset('storage/Logo/pds.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ asset('Logo/pds.svg') }}" type="image/svg+xml">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -26,8 +26,8 @@
 
         <!-- Modal Overlay -->
         <div x-data="{ show: false }" @open-modal.window="show = true" @close-modal.window="show = false" x-show="show"
-            class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-            <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div class="relative p-6 bg-white rounded-lg shadow-lg dark:bg-gray-800">
                 <div class="absolute top-2 right-2">
                     <!-- Close Button -->
                     <button @click="show = false" class="text-gray-600 hover:text-gray-900 dark:text-gray-300">
