@@ -12,6 +12,7 @@ class Challenge extends Model
         'status',
         'banned_agent',
         'witness_id',
+        'team_id',
     ];
 
     public function challenger()

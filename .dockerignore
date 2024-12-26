@@ -26,3 +26,8 @@ fly.toml
 **/.DS_Store
 **/Thumbs.db
 public/hot
+
+#for testing purposes//
+#ignore the storage link because it is saved as a copy in the public folder
+
+public/storage

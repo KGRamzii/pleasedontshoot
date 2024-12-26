@@ -105,8 +105,8 @@ new class extends Component {
 
 <div>
     <!-- Add Member Form -->
-    <div class="p-4 bg-white rounded-lg shadow">
-        <h3 class="text-lg font-medium">Invite Team Member</h3>
+    <div class="p-4 bg-white rounded-lg shadow dark:bg-slate-700">
+        <h3 class="text-lg font-medium text-slate-300">Invite Team Member</h3>
         <form wire:submit="addMember" class="mt-4 space-y-4">
             <div>
                 <x-input-label for="email" value="Email" />
@@ -117,7 +117,7 @@ new class extends Component {
             <div>
                 <x-input-label for="role" value="Role" />
                 <select wire:model="role" id="role"
-                    class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-slate-900 dark:text-slate-300">
                     <option value="member">Member</option>
                     <option value="admin">Admin</option>
                 </select>
@@ -131,12 +131,12 @@ new class extends Component {
     </div>
 
     <!-- Team Members List -->
-    <div class="mt-6">
-        <h3 class="text-lg font-medium">Team Members</h3>
+    <div class="mt-6 dark:text-slate-300">
+        <h3 class="text-lg font-medium dark:text-slate-300">Team Members</h3>
         <x-input-error :messages="$errors->get('remove')" class="mt-2" />
-        <div class="mt-4 space-y-4">
+        <div class="mt-4 space-y-4 ">
             @foreach ($members as $member)
-                <div class="flex items-center justify-between p-4 bg-white rounded-lg shadow">
+                <div class="flex items-center justify-between p-4 bg-white rounded-lg shadow dark:bg-slate-700">
                     <div>
                         <div class="font-medium">{{ $member['name'] }}</div>
                         <div class="text-sm text-gray-500">{{ $member['email'] }}</div>

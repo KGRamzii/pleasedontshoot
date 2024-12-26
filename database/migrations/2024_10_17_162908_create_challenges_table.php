@@ -17,7 +17,7 @@ return new class extends Migration {
             $table->enum('status', ['pending', 'accepted', 'declined', 'completed'])->default('pending');
             $table->string('banned_agent')->nullable(); // Specific agent or type
             $table->foreignId('witness_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('team_id')->nullable()->after('id');
+            $table->foreignId('team_id')->constrained('teams')->nullable()->after('id');
             $table->timestamps();
         });
     }

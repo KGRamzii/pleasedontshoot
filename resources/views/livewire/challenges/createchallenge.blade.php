@@ -88,16 +88,24 @@ new class extends Component {
             return collect();
         }
 
-        $challenger = Auth::user();
+        // Get challenger's team-specific rank
+        $challengerTeamUser = \DB::table('team_user')
+            ->where('team_id', $this->selected_team_id)
+            ->where('user_id', $this->challenger_id)
+            ->first();
+
+        if (!$challengerTeamUser) {
+            return collect();
+        }
 
         return User::query()
             ->join('team_user', 'users.id', '=', 'team_user.user_id')
             ->where('team_user.team_id', $this->selected_team_id)
             ->where('users.id', '!=', $this->challenger_id)
+            ->where('team_user.status', 'approved')
             ->select('users.*', 'team_user.rank')
-            ->when($challenger->rank, function ($query) use ($challenger) {
-                return $query->whereBetween('team_user.rank', [$challenger->rank - 1, $challenger->rank + 1]);
-            })
+            ->whereBetween('team_user.rank', [$challengerTeamUser->rank - 1, $challengerTeamUser->rank + 1])
+            ->orderBy('team_user.rank')
             ->get();
     }
 
@@ -113,6 +121,7 @@ new class extends Component {
             ->where('team_user.team_id', $this->selected_team_id)
             ->where('users.id', '!=', $this->challenger_id)
             ->where('users.id', '!=', $this->opponent_id)
+            ->where('team_user.status', 'approved') // Changed to filter on team_user.status
             ->select('users.*')
             ->get();
     }
@@ -183,39 +192,49 @@ new class extends Component {
     protected function sendToDiscord($challenge)
     {
         $webhookUrl = env('DISCORD_WEBHOOK');
-
         $bannedAgentData = $challenge->banned_agent ? json_decode($challenge->banned_agent, true) : null;
+
+        // Get team name
+        $team = \DB::table('teams')
+            ->where('id', $challenge->team_id)
+            ->first();
+        $teamName = $team ? $team->name : 'Unknown Team';
 
         $message = [
             'embeds' => [
                 [
-                    'title' => 'New Challenge Created!',
-                    'color' => 5814783,
+                    'title' => '🎮 New Challenge Created!',
+                    'description' => "A new challenge has been issued in **{$teamName}**",
+                    'color' => 0x7289da, // Discord Blurple color
                     'fields' => [
                         [
-                            'name' => 'Challenger',
-                            'value' => '**<@' . Auth::user()->discord_id . '>**',
+                            'name' => '👊 Challenger',
+                            'value' => '<@' . Auth::user()->discord_id . '>',
                             'inline' => true,
                         ],
                         [
-                            'name' => 'Opponent',
-                            'value' => '**<@' . optional(User::find($challenge->opponent_id))->discord_id . '>**',
+                            'name' => '🎯 Opponent',
+                            'value' => '<@' . optional(User::find($challenge->opponent_id))->discord_id . '>',
                             'inline' => true,
                         ],
                         [
-                            'name' => 'Witness',
-                            'value' => '**<@' . optional(User::find($challenge->witness_id))->discord_id . '>**',
+                            'name' => '👀 Witness',
+                            'value' => '<@' . optional(User::find($challenge->witness_id))->discord_id . '>',
                             'inline' => true,
                         ],
+                    ],
+                    'footer' => [
+                        'text' => 'Challenge ID: ' . $challenge->id . ' • Created at ' . now()->format('M j, Y g:i A'),
                     ],
                 ],
             ],
         ];
 
+        // Add banned agent if present
         if ($bannedAgentData) {
             $message['embeds'][0]['fields'][] = [
-                'name' => 'Banned Agent',
-                'value' => '**' . $bannedAgentData['name'] . '**',
+                'name' => '🚫 Banned Agent',
+                'value' => $bannedAgentData['name'],
                 'inline' => true,
             ];
 
@@ -224,8 +243,8 @@ new class extends Component {
             ];
         } else {
             $message['embeds'][0]['fields'][] = [
-                'name' => 'Banned Agent',
-                'value' => '**None**',
+                'name' => '🚫 Banned Agent',
+                'value' => 'None',
                 'inline' => true,
             ];
         }

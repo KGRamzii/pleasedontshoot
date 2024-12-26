@@ -6,4 +6,6 @@
 
 /usr/bin/php /var/www/html/artisan storage:link
 /usr/bin/php /var/www/html/artisan migrate --force
+#/usr/bin/php /var/www/html/artisan migrate:fresh --force
+
 

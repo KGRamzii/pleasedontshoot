@@ -1,7 +1,7 @@
 <!-- resources/views/teams/show.blade.php -->
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="text-xl font-semibold leading-tight text-gray-800">
+        <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-pretty dark:text-slate-300">
             {{ $team->name }}
         </h2>
     </x-slot>

@@ -13,9 +13,9 @@ return new class extends Migration {
         Schema::create('team_user', function (Blueprint $table) {
             $table->id();
             $table->foreignId('team_id')->constrained()->onDelete('cascade');
-            $table->foreignId('user_id')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('status', 20)->default('pending');
-            $table->integer('rank')->default(1); // This allows users to have a rank per team
+            $table->integer('rank'); // This allows users to have a rank per team
             $table->string('role', 20)->default('member');
 
             $table->timestamps();
