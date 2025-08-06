@@ -2,6 +2,7 @@
 
 use Livewire\Volt\Component;
 use App\Models\User;
+
 use App\Models\Challenge;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
@@ -11,16 +12,19 @@ new class extends Component {
     public $topRankedUsers;
     public $recentMatches; // Add this property
 
+
     public function mount()
     {
         $this->loadTopRankedUsers();
         $this->loadRecentMatches(); // Load recent matches on mount
+
     }
 
     public function loadTopRankedUsers()
     {
         $this->topRankedUsers = User::orderBy('rank')->take(3)->get();
     }
+
 
     public function loadRecentMatches()
     {
@@ -55,20 +59,26 @@ new class extends Component {
                 return $match;
             });
     }
+
 }; ?>
 
 <div class="bg-gradient-to-b from-gray-900 via-gray-800 to-blue-900">
     <!-- Hero Section -->
     <div class="relative overflow-hidden">
+
+        <!-- Background Pattern -->
+
         <div class="absolute inset-0 bg-black opacity-50"></div>
         <div class="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-purple-500/30"></div>
 
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
             <div class="text-center">
                 <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight">
+
                     Valorant <span class="text-pink-500">Pink</span> Slip
                     <span class="block text-blue-400">Challenge & Climb</span>
                 </h1>
+
 
                 <p class="mt-6 max-w-2xl mx-auto text-xl text-gray-300">
                     Challenge other players, prove your worth, and climb the ranks in our competitive Valorant
@@ -111,7 +121,9 @@ new class extends Component {
                         <div class="absolute top-4 right-4 z-10">
                             @if ($index === 0)
                                 <span
+
                                     class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-900 text-white text-xl font-bold">
+
                                     👑
                                 </span>
                             @elseif($index === 1)
@@ -151,6 +163,7 @@ new class extends Component {
             @endforeach
         </div>
     </div>
+
 
     <!-- Recent Matches Section -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -247,6 +260,7 @@ new class extends Component {
             <p class="mt-4 text-gray-400">Check out the App Features</p>
         </div>
         <div class="grid grid-cols-1 gap-8 md:grid-cols-3 mt-12 ">
+
             <div class="bg-gray-800 rounded-lg p-8 transform transition-all duration-300 hover:scale-105">
                 <div class="w-12 h-12 rounded-lg bg-blue-500 flex items-center justify-center mb-4">
                     <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -284,11 +298,15 @@ new class extends Component {
     </div>
 
     <!-- Footer -->
+
     {{-- <footer class="bg-gray-900">
+
         <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
             <div class="text-center text-gray-400">
                 <p>&copy; {{ date('Y') }} Valorant Rankings. All rights reserved.</p>
             </div>
         </div>
+
     </footer> --}}
+
 </div>
