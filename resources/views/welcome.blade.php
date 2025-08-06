@@ -56,7 +56,9 @@
                 </div>
                 <div class="mt-8 md:order-1 md:mt-0">
                     <p class="text-center text-base text-gray-400">
-                        &copy; {{ date('Y') }} Valorant Rankings. All rights reserved.
+
+                        &copy; {{ date('Y') }} PleaseDontShoot. All rights reserved.
+
                     </p>
                 </div>
             </div>

@@ -163,29 +163,35 @@ new class extends Component {
 
     private function swapRanks(User $winner, User $loser, Challenge $challenge)
     {
-        $winnerPreviousRank = $winner->rank;
-        $loserPreviousRank = $loser->rank;
+        $teamId = $challenge->team_id; // Assuming `team_id` is available on the `Challenge` model
+        $winnerTeamUser = $winner->teams()->wherePivot('team_id', $teamId)->first();
+        $loserTeamUser = $loser->teams()->wherePivot('team_id', $teamId)->first();
+
+        $winnerPreviousRank = $winnerTeamUser->pivot->rank;
+        $loserPreviousRank = $loserTeamUser->pivot->rank;
 
         // Swap the ranks
-        $winner->update(['rank' => $loserPreviousRank]);
-        $loser->update(['rank' => $winnerPreviousRank]);
+        $winner->teams()->updateExistingPivot($teamId, ['rank' => $loserPreviousRank]);
+        $loser->teams()->updateExistingPivot($teamId, ['rank' => $winnerPreviousRank]);
 
         // Log rank history
         RankHistory::create([
             'user_id' => $winner->id,
+            'team_id' => $teamId,
             'previous_rank' => $winnerPreviousRank,
             'new_rank' => $loserPreviousRank,
             'challenge_id' => $challenge->id,
         ]);
         RankHistory::create([
             'user_id' => $loser->id,
+            'team_id' => $teamId,
             'previous_rank' => $loserPreviousRank,
             'new_rank' => $winnerPreviousRank,
             'challenge_id' => $challenge->id,
         ]);
 
         // Send updated rankings to Discord
-        $this->sendRankListToDiscord();
+        $this->sendRankListToDiscord($teamId);
     }
 }; ?>
 

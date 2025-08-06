@@ -6,8 +6,9 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations;
 
-class User extends Authenticatable
+class User extends Authenticatable //implements MustVerifyEmail
 {
     use HasFactory, Notifiable;
 
@@ -44,4 +45,50 @@ class User extends Authenticatable
     {
         return $this->hasMany(RankHistory::class);
     }
+
+    //Team support
+
+    public function currentTeam()
+    {
+        return $this->belongsTo(Team::class, 'current_team_id');
+    }
+
+    public function ownedTeams()
+    {
+        return $this->hasMany(Team::class);
+    }
+
+    public function teams()
+    {
+        return $this->belongsToMany(Team::class)
+            ->withPivot('role', 'status', 'rank')
+            // ->orderBy('pivot.rank')
+            ->withTimestamps();
+    }
+    //In User model
+    // public function teams()
+    // {
+    //     return $this->hasMany(Team::class)->wherePivot('status');
+    // }
+
+
+    public function pendingInvitations()
+    {
+        return $this->teams()->wherePivot('status', 'pending');
+    }
+
+    public function allTeams()
+    {
+        return $this->ownedTeams->merge($this->teams);
+    }
+
+    // protected static function booted()
+    // {
+    //     static::created(function ($user) {
+    //         $user->ownedTeams()->create([
+    //             'name' => $user->name . "'s Team",
+    //             'personal_team' => true,
+    //         ]);
+    //     });
+    // }
 }

@@ -17,6 +17,7 @@ return new class extends Migration {
             $table->enum('status', ['pending', 'accepted', 'declined', 'completed'])->default('pending');
             $table->string('banned_agent')->nullable(); // Specific agent or type
             $table->foreignId('witness_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('team_id')->constrained('teams')->nullable()->after('id');
             $table->timestamps();
         });
     }
@@ -27,5 +28,8 @@ return new class extends Migration {
     public function down(): void
     {
         Schema::dropIfExists('challenges');
+        Schema::table('challenges', function (Blueprint $table) {
+            $table->dropColumn('team_id');
+        });
     }
 };

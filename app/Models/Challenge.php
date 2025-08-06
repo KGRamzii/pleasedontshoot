@@ -12,6 +12,7 @@ class Challenge extends Model
         'status',
         'banned_agent',
         'witness_id',
+        'team_id',
     ];
 
     public function challenger()
@@ -28,4 +29,17 @@ class Challenge extends Model
     {
         return $this->belongsTo(User::class, 'witness_id'); // Capitalized 'User'
     }
+    public function rankHistories()
+    {
+        return $this->hasMany(RankHistory::class);
+    }
+
+    //teams
+
+
+    public function team()
+    {
+        return $this->belongsTo(Team::class);
+    }
+
 }

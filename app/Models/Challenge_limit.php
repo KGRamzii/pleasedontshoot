@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class challenge_limit extends Model
+class Challenge_limit extends Model
 {
     protected $fillable = [
         'user_id',
