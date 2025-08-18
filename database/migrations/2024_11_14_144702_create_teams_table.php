@@ -15,6 +15,7 @@ return new class extends Migration {
             $table->foreignId('user_id')->constrained('users')->index();
             $table->string('name')->unique;
             $table->boolean('personal_team');
+            $table->string('discord_team_id')->nullable();
             $table->timestamps();
         });
     }

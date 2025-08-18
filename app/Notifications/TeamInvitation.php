@@ -3,6 +3,8 @@
 namespace App\Notifications;
 
 use App\Models\Team;
+use App\Services\DiscordService;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -19,7 +21,28 @@ class TeamInvitation extends Notification implements ShouldQueue
 
     public function via($notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', 'discord'];
+    }
+
+    public function toDiscord($notifiable)
+    {
+        if (!$notifiable->discord_id) {
+            Log::info('Skipping Discord notification - no discord_id', [
+                'user' => $notifiable->id,
+                'email' => $notifiable->email
+            ]);
+            return null;
+        }
+        
+        Log::info('Preparing Discord invitation message', [
+            'user' => $notifiable->id,
+            'discord_id' => $notifiable->discord_id,
+            'team' => $this->team->name
+        ]);
+        
+        $inviteUrl = route('teams.invitations');
+        return "🎮 You have been invited to join the team: {$this->team->name}!\n\n".
+               "Click here to respond to the invitation: {$inviteUrl}";
     }
 
     public function toMail($notifiable): MailMessage

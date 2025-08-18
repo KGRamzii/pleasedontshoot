@@ -13,6 +13,7 @@ class TeamService
             'user_id' => $user->id,
             'name' => $name,
             'personal_team' => true,
+            'discord_team_id' => null, // Assuming no Discord ID is provided initially
         ]);
     }
 

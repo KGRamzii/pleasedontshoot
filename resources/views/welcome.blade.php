@@ -5,6 +5,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Valorant Rankings</title>
+    <meta name="description" content="Valorant Rankings - Track your competitive performance and team stats.">
+
+    <link rel="icon" href="{{ asset('Logo/pds(white).svg') }}" type="image/svg+xml">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">

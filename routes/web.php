@@ -6,6 +6,8 @@ use App\Http\Controllers\TeamMemberController;
 use App\Http\Controllers\WebhookController;
 use App\Livewire\ChallengeList;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Request;
 
 
 Route::view('/', 'welcome');
@@ -69,6 +71,26 @@ Route::middleware(['auth'])->group(function () {
 // });
 
 
+// Might delete Later
+
+// routes/web.php
+Route::get('/send-discord', function () {
+    return view('send-discord');
+});
+
+Route::post('/send-discord', function (Request $request) {
+    // Simple HTTP request to your Python bot
+    $response = Http::post('https://pdsapi.fly.dev/send-channel-message', [
+        'channel_id' => $request->channel_id,
+        'message' => $request->message
+    ]);
+    
+    if ($response->successful()) {
+        return back()->with('success', 'Message sent to Discord!');
+    } else {
+        return back()->with('error', 'Failed to send message: ' . $response->body());
+    }
+});
 
 
 

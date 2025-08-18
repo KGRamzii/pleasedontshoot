@@ -69,7 +69,9 @@ new class extends Component {
         <!-- Background Pattern -->
 
         <div class="absolute inset-0 bg-black opacity-50"></div>
-        <div class="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-purple-500/30"></div>
+        <div class="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-purple-500/30">
+            <img src="{{ asset('valArt/Valorant_EP-8-Teaser_The-arrival.jpg') }}">
+        </div>
 
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
             <div class="text-center">
@@ -93,11 +95,11 @@ new class extends Component {
                     @else
                         <a href="{{ route('login') }}"
                             class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                            Get Started
+                            Continue
                         </a>
                         <a href="{{ route('register') }}"
                             class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-gray-200 bg-gray-800 hover:bg-gray-700">
-                            Sign Up
+                            Get Started
                         </a>
                     @endauth
                 </div>

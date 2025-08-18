@@ -3,97 +3,86 @@
 use Livewire\Volt\Component;
 use App\Models\Team;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 new class extends Component {
     public $name = '';
-    public $errorMessage = '';
+    public $discord_team_id = '';
 
-    // Validation rules
-    protected $rules = [
-        'name' => ['required', 'string', 'max:255', 'unique:teams,name'],
-    ];
-
-    // Reset error message when name changes
-    public function updatedName()
+    protected function rules()
     {
-        $this->errorMessage = '';
+        return [
+            'name' => ['required', 'string', 'max:255', 'unique:teams,name'],
+            'discord_team_id' => ['nullable', 'string', 'max:255'],
+        ];
     }
 
-    // Method to handle team creation
     public function createTeam()
     {
         $this->validate();
 
         try {
-            $team = DB::transaction(function () {
-                // Create the new team
-                $team = Team::create([
-                    'name' => $this->name,
-                    'user_id' => Auth::id(),
-                    'personal_team' => false,
-                ]);
+            $team = Team::create([
+                'name' => $this->name,
+                'discord_team_id' => $this->discord_team_id,
+                'user_id' => Auth::id(),
+                'personal_team' => false,
+            ]);
 
-                // Add the team creator to the team_user table
-                DB::table('team_user')->insert([
-                    'team_id' => $team->id,
-                    'user_id' => Auth::id(),
-                    'status' => 'approved',
-                    'rank' => 1,
-                    'role' => 'admin',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+            // Attach creator as admin
+            $team->users()->attach(Auth::id(), [
+                'status' => 'approved',
+                'rank' => 1,
+                'role' => 'admin',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
-                return $team;
-            });
-
-            // Clear any error message
-            $this->errorMessage = '';
-
-            // Reset form
-            $this->reset('name');
-
-            // Flash success message
             session()->flash('success', 'Team created successfully.');
+            $this->reset(['name', 'discord_team_id']);
 
-            // Redirect to the team page
             return redirect()->route('teams.show', $team);
         } catch (\Exception $e) {
-            $this->errorMessage = 'Something went wrong. Please try again.';
-            // Clear any success message
-            session()->forget('success');
+            session()->flash('error', 'Something went wrong. Please try again.');
         }
     }
-}; ?>
+};
+?>
 
-<div>
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 relative">
-        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white text-center">Create New Team</h2>
+<x-modal name="create-team" :show="true">
+    <div class="p-6">
+        <h2 class="text-2xl font-semibold text-center text-gray-900 dark:text-white">Create New Team</h2>
 
-        @if (session()->has('success') && !$errorMessage)
+        @if (session('success'))
             <div class="mt-4 p-3 text-sm text-green-700 bg-green-100 rounded-md dark:text-green-100 dark:bg-green-900">
                 {{ session('success') }}
             </div>
         @endif
 
-        @if ($errorMessage)
+        @if (session('error'))
             <div class="mt-4 p-3 text-sm text-red-700 bg-red-100 rounded-md dark:text-red-100 dark:bg-red-900">
-                {{ $errorMessage }}
+                {{ session('error') }}
             </div>
         @endif
 
-        <form wire:submit.prevent="createTeam" class="mt-6">
-            <div class="mb-6">
-                <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <form wire:submit.prevent="createTeam" class="mt-6 space-y-4">
+            <div>
+                <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Team Name
                 </label>
                 <input wire:model="name" id="name" type="text"
-                    class="block w-full px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                    class="block w-full px-4 py-2 mt-1 border rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-600 dark:text-gray-300"
                     placeholder="Enter team name" required>
-                @error('name')
-                    <div class="text-sm text-red-500 mt-2">{{ $message }}</div>
-                @enderror
+                @error('name') <div class="text-sm text-red-500 mt-2">{{ $message }}</div> @enderror
+            </div>
+
+            <div>
+                <label for="discord_team_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Discord Team ID (optional)
+                </label>
+                <input wire:model="discord_team_id" id="discord_team_id" type="text"
+                    class="block w-full px-4 py-2 mt-1 border rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-600 dark:text-gray-300"
+                    placeholder="Enter Discord Server/Channel ID">
+                @error('discord_team_id') <div class="text-sm text-red-500 mt-2">{{ $message }}</div> @enderror
             </div>
 
             <div class="flex items-center justify-end space-x-4">
@@ -108,4 +97,4 @@ new class extends Component {
             </div>
         </form>
     </div>
-</div>
+</x-modal>

@@ -13,42 +13,44 @@ class TeamMemberController extends Controller
      * Add a new team member.
      */
     public function store(Request $request, Team $team)
-    {
-        // Authorize the action using the policy method
-        if (!Gate::allows('addTeamMember', $team)) {
-            abort(403);
-        }
+{
+    if (!Gate::allows('addTeamMember', $team)) {
+        abort(403);
+    }
 
-        // Validate the input
-        $validated = $request->validate([
-            'email' => ['required', 'email', 'exists:users,email'],
-            'role' => ['required', 'string', 'in:member,admin'],
+    $validated = $request->validate([
+        'email' => ['required', 'email', 'exists:users,email'],
+        'role' => ['required', 'string', 'in:member,admin'],
+    ]);
+
+    $user = User::where('email', $validated['email'])->first();
+
+    if ($team->users->contains($user)) {
+        return back()->with('error', 'User is already a member of this team.');
+    }
+
+    $lowestRank = $team->users()->min('rank');
+    $newRank = $lowestRank ? $lowestRank + 1 : 1;
+
+    try {
+        $team->users()->attach($user->id, [
+            'role' => $validated['role'],
+            'rank' => $newRank,
         ]);
 
-        // Retrieve the user by email
-        $user = User::where('email', $validated['email'])->first();
+        // Notify Discord (mocked)
+        $discordService = app(\App\Services\DiscordService::class);
+        $discordService->sendDirectMessage(
+            $user->discord_id ?? 'UNKNOWN_ID', // assumes you have discord_id column
+            "You’ve been invited to join the team '{$team->name}'."
+        );
 
-        // Check if user is already a member
-        if ($team->users->contains($user)) {
-            return back()->with('error', 'User is already a member of this team.');
-        }
-
-        // Get the lowest rank and increment by 1
-        $lowestRank = $team->users()->min('rank');
-        $newRank = $lowestRank ? $lowestRank + 1 : 1; // If no members, start from rank 1
-
-        // Add the user to the team with the specified role and rank
-        try {
-            $team->users()->attach($user->id, [
-                'role' => $validated['role'],
-                'rank' => $newRank,
-            ]);
-
-            return back()->with('success', 'Team member added successfully with rank.');
-        } catch (\Exception $e) {
-            return back()->with('error', 'Failed to add user to the team. Please try again.');
-        }
+        return back()->with('success', 'Team member added successfully with rank.');
+    } catch (\Exception $e) {
+        return back()->with('error', 'Failed to add user to the team. Please try again.');
     }
+}
+
 
 
     /**
@@ -60,7 +62,7 @@ class TeamMemberController extends Controller
         if (Gate::allows('removeMember', [$team, $user])) {
             // Prevent removing the team owner
             if ($team->user_id === $user->id) {
-                return back()->with('error', 'Team owner cannot be removed.');
+                return back()->with('error', 'Team owner cannot be removed!.');
             }
 
             // Use Eloquent's detach method to remove the user from the team
