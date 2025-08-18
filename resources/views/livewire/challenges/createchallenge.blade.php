@@ -6,15 +6,14 @@ use App\Models\User;
 use App\Models\Challenge;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use function Livewire\Volt\{state};
 use Illuminate\Support\Facades\Http;
+use function Livewire\Volt\{state};
 
 new class extends Component {
     public $challenger_id;
-    public $team_id = null;
     public $opponent_id = null;
     public $witness_id = null;
-    public $banned_agent = '';
+    public $banned_agent = ''; // Store agent UUID or name
     public $status = 'pending';
     public $step = 1;
     public $loading = false;
@@ -33,33 +32,37 @@ new class extends Component {
     public function mount()
     {
         $this->challenger_id = Auth::id();
-        $this->initializeTeam();
         $this->loadAgents();
     }
 
-    private function initializeTeam()
+    // New computed property to check if user meets all requirements
+    #[Computed]
+    public function canCreateChallenge()
     {
-        $userTeams = Auth::user()->teams()->select('teams.id')->pluck('id');
-
-        if ($userTeams->count() === 1) {
-            $this->selected_team_id = $userTeams->first();
+        $currentUser = Auth::user();
+        if (!$currentUser->discord_id || empty($currentUser->discord_id)) {
+            return false;
         }
+
+        return $this->availableTeams->isNotEmpty();
     }
 
     #[Computed]
     public function availableTeams()
     {
+        $currentUser = Auth::user();
+
         return \DB::table('teams')
             ->join('team_user', 'teams.id', '=', 'team_user.team_id')
-            ->where('team_user.user_id', $this->challenger_id)
-            ->select('teams.id', 'teams.name')
+            ->where('team_user.user_id', $currentUser->id)
+            ->where('team_user.status', 'approved')
+            ->select('teams.id', 'teams.name', 'teams.discord_team_id')
             ->get();
     }
 
     public function loadAgents()
     {
         $this->loadingAgents = true;
-
         try {
             $this->agentsList = Cache::remember('valorant.agents', 3600, function () {
                 $response = Http::get('https://valorant-api.com/v1/agents');
@@ -88,7 +91,6 @@ new class extends Component {
             return collect();
         }
 
-        // Get challenger's team-specific rank
         $challengerTeamUser = \DB::table('team_user')
             ->where('team_id', $this->selected_team_id)
             ->where('user_id', $this->challenger_id)
@@ -103,6 +105,8 @@ new class extends Component {
             ->where('team_user.team_id', $this->selected_team_id)
             ->where('users.id', '!=', $this->challenger_id)
             ->where('team_user.status', 'approved')
+            ->whereNotNull('users.discord_id')
+            ->where('users.discord_id', '!=', '')
             ->select('users.*', 'team_user.rank')
             ->whereBetween('team_user.rank', [$challengerTeamUser->rank - 1, $challengerTeamUser->rank + 1])
             ->orderBy('team_user.rank')
@@ -121,9 +125,20 @@ new class extends Component {
             ->where('team_user.team_id', $this->selected_team_id)
             ->where('users.id', '!=', $this->challenger_id)
             ->where('users.id', '!=', $this->opponent_id)
-            ->where('team_user.status', 'approved') // Changed to filter on team_user.status
+            ->where('team_user.status', 'approved')
+            ->whereNotNull('users.discord_id')
+            ->where('users.discord_id', '!=', '')
             ->select('users.*')
             ->get();
+    }
+
+    #[Computed]
+    public function selectedBannedAgent()
+    {
+        if (empty($this->banned_agent)) {
+            return null;
+        }
+        return collect($this->agentsList)->firstWhere('uuid', $this->banned_agent);
     }
 
     public function confirmChallenge()
@@ -137,11 +152,16 @@ new class extends Component {
 
     public function backToSelection()
     {
-        $this->step = 1;
+        if ($this->step == 3) {
+            $this->step = 2;
+        } elseif ($this->step == 2) {
+            $this->step = 1;
+        }
     }
 
     public function createChallenge()
     {
+        // First, perform validation on the request data
         $this->validate([
             'selected_team_id' => 'required|exists:teams,id',
             'opponent_id' => 'required|exists:users,id',
@@ -149,15 +169,25 @@ new class extends Component {
             'banned_agent' => 'nullable|string',
         ]);
 
+        // Then, perform business logic checks
+        if (!$this->canCreateChallenge()) {
+            $this->dispatch('challenge-error', [
+                'message' => 'You do not meet the requirements to create a challenge.'
+            ]);
+            return;
+        }
+
+        // Check for existing pending/accepted challenges
         $existingChallenge = Challenge::where('challenger_id', $this->challenger_id)
             ->where('opponent_id', $this->opponent_id)
             ->whereIn('status', ['pending', 'accepted'])
             ->first();
 
         if ($existingChallenge) {
+            $opponent = User::find($this->opponent_id);
             $this->dispatch('challenge-exists', [
                 'status' => $existingChallenge->status,
-                'message' => 'A challenge has already been sent to ' . optional(User::find($this->opponent_id))->discord_id . ' with status: **' . $existingChallenge->status . '**.',
+                'message' => 'A challenge has already been sent to ' . ($opponent ? $opponent->discord_id : 'this user') . ' with status: **' . $existingChallenge->status . '**.',
             ]);
             $this->resetState();
             return;
@@ -191,70 +221,16 @@ new class extends Component {
 
     protected function sendToDiscord($challenge)
     {
-        $webhookUrl = env('DISCORD_WEBHOOK');
-        $bannedAgentData = $challenge->banned_agent ? json_decode($challenge->banned_agent, true) : null;
-
-        // Get team name
-        $team = \DB::table('teams')
-            ->where('id', $challenge->team_id)
-            ->first();
-        $teamName = $team ? $team->name : 'Unknown Team';
-
-        $message = [
-            'embeds' => [
-                [
-                    'title' => '🎮 New Challenge Created!',
-                    'description' => "A new challenge has been issued in **{$teamName}**",
-                    'color' => 0x7289da, // Discord Blurple color
-                    'fields' => [
-                        [
-                            'name' => '👊 Challenger',
-                            'value' => '<@' . Auth::user()->discord_id . '>',
-                            'inline' => true,
-                        ],
-                        [
-                            'name' => '🎯 Opponent',
-                            'value' => '<@' . optional(User::find($challenge->opponent_id))->discord_id . '>',
-                            'inline' => true,
-                        ],
-                        [
-                            'name' => '👀 Witness',
-                            'value' => '<@' . optional(User::find($challenge->witness_id))->discord_id . '>',
-                            'inline' => true,
-                        ],
-                    ],
-                    'footer' => [
-                        'text' => 'Challenge ID: ' . $challenge->id . ' • Created at ' . now()->format('M j, Y g:i A'),
-                    ],
-                ],
-            ],
-        ];
-
-        // Add banned agent if present
-        if ($bannedAgentData) {
-            $message['embeds'][0]['fields'][] = [
-                'name' => '🚫 Banned Agent',
-                'value' => $bannedAgentData['name'],
-                'inline' => true,
-            ];
-
-            $message['embeds'][0]['thumbnail'] = [
-                'url' => $bannedAgentData['icon'],
-            ];
-        } else {
-            $message['embeds'][0]['fields'][] = [
-                'name' => '🚫 Banned Agent',
-                'value' => 'None',
-                'inline' => true,
-            ];
+        if (class_exists('App\Services\DiscordService')) {
+            app(\App\Services\DiscordService::class)->sendChallengeNotification($challenge, 'created');
         }
-
-        Http::post($webhookUrl, $message);
     }
 
     public function updatedOpponentId()
     {
         $this->opponentSelected = $this->opponent_id !== null;
+        $this->witness_id = null;
+        $this->witnessSelected = false;
     }
 
     public function updatedWitnessId()
@@ -262,9 +238,8 @@ new class extends Component {
         $this->witnessSelected = $this->witness_id !== null;
     }
 
-    public function updatedTeamId($teamId)
+    public function updatedSelectedTeamId()
     {
-        $this->team_id = $teamId;
         $this->opponent_id = null;
         $this->witness_id = null;
         $this->opponentSelected = false;
@@ -283,7 +258,12 @@ new class extends Component {
 $wire.on('challenge-exists', (data) => {
     showError = true;
     errorMessage = data.message;
-    setTimeout(() => showError = false, 3000);
+    setTimeout(() => showError = false, 5000);
+});
+$wire.on('challenge-error', (data) => {
+    showError = true;
+    errorMessage = data.message;
+    setTimeout(() => showError = false, 5000);
 });" class="container mt-1 bg-white rounded-lg shadow dark:bg-gray-800">
 
     <h1 class="p-5 text-xl font-bold text-gray-900 dark:text-white">Create New Challenge</h1>
@@ -293,7 +273,6 @@ $wire.on('challenge-exists', (data) => {
             New Challenge
         </button>
 
-        <!-- Success Message -->
         <div x-show="showSuccess" x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
             x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100"
@@ -301,7 +280,6 @@ $wire.on('challenge-exists', (data) => {
             Challenge created successfully!
         </div>
 
-        <!-- Error Message -->
         <div x-show="showError" x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
             x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100"
@@ -312,12 +290,23 @@ $wire.on('challenge-exists', (data) => {
         @if ($step == 1)
             <div class="mt-3">
                 <h4 class="text-lg font-bold text-gray-800 dark:text-white">Select a Team</h4>
-                @if ($this->availableTeams->isEmpty())
-                    <p class="text-red-500">You are not part of any teams.</p>
+                @if (!$this->canCreateChallenge)
+                    <div class="p-4 mt-4 text-sm text-white bg-red-500 rounded-lg">
+                        <p><strong>You cannot create challenges because:</strong></p>
+                        <ul class="mt-2 ml-4 list-disc">
+                            @if (!Auth::user()->discord_id)
+                                <li>You must have a Discord ID linked to your account</li>
+                            @endif
+                            @if ($this->availableTeams->isEmpty())
+                                <li>You must be an approved member of at least one team</li>
+                            @endif
+                        </ul>
+                        <p class="mt-2">Please contact an administrator to resolve these issues.</p>
+                    </div>
                 @else
                     <div class="mb-3">
-                        <label for="team_id" class="block text-gray-700 dark:text-gray-300">Available Teams</label>
-                        <select
+                        <label for="selected_team_id" class="block text-gray-700 dark:text-gray-300">Available Teams</label>
+                        <select id="selected_team_id"
                             class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:bg-gray-700 dark:text-white"
                             wire:model.live="selected_team_id">
                             <option value="">Choose a team</option>
@@ -343,11 +332,16 @@ $wire.on('challenge-exists', (data) => {
                 <h4 class="text-lg font-bold text-gray-800 dark:text-white">Select an Opponent</h4>
                 @if ($this->availableOpponents->isEmpty())
                     <p class="text-red-500">No opponents available to challenge.</p>
+                    <button
+                        class="px-4 py-2 mt-2 font-semibold text-gray-700 transition bg-gray-200 rounded hover:bg-gray-300"
+                        wire:click.prevent="backToSelection">
+                        Back to Team Selection
+                    </button>
                 @else
                     <div class="mb-3">
                         <label for="opponent_id" class="block text-gray-700 dark:text-gray-300">Available
                             Opponents</label>
-                        <select
+                        <select id="opponent_id"
                             class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:bg-gray-700 dark:text-white"
                             wire:model.live="opponent_id">
                             <option value="">Choose an opponent</option>
@@ -358,19 +352,21 @@ $wire.on('challenge-exists', (data) => {
                         </select>
                     </div>
 
-                    @if ($opponentSelected)
-                        <button
-                            class="px-4 py-2 font-semibold text-white transition bg-blue-600 rounded hover:bg-blue-700"
-                            wire:click.prevent="confirmChallenge">
-                            Next: Confirm Challenge
-                        </button>
-                    @endif
+                    <div class="flex gap-2">
+                        @if ($opponentSelected)
+                            <button
+                                class="px-4 py-2 font-semibold text-white transition bg-blue-600 rounded hover:bg-blue-700"
+                                wire:click.prevent="confirmChallenge">
+                                Next: Confirm Challenge
+                            </button>
+                        @endif
 
-                    <button
-                        class="px-4 py-2 font-semibold text-gray-700 transition bg-gray-200 rounded hover:bg-gray-300"
-                        wire:click.prevent="backToSelection">
-                        Back
-                    </button>
+                        <button
+                            class="px-4 py-2 font-semibold text-gray-700 transition bg-gray-200 rounded hover:bg-gray-300"
+                            wire:click.prevent="backToSelection">
+                            Back
+                        </button>
+                    </div>
                 @endif
             </div>
         @endif
@@ -380,12 +376,12 @@ $wire.on('challenge-exists', (data) => {
                 <h4 class="text-lg font-bold text-gray-800 dark:text-white">Confirm Challenge</h4>
                 <p class="text-gray-600 dark:text-gray-400">Challenger: <strong>{{ Auth::user()->name }}</strong></p>
                 <p class="text-gray-600 dark:text-gray-400">Opponent:
-                    <strong>{{ optional(User::find($opponent_id))->name }}</strong>
+                    <strong>{{ $opponent_id ? User::find($opponent_id)?->name : 'Not selected' }}</strong>
                 </p>
 
                 <div class="mb-3">
                     <label for="witness_id" class="block text-gray-700 dark:text-gray-300">Witness</label>
-                    <select
+                    <select id="witness_id"
                         class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:bg-gray-700 dark:text-white"
                         wire:model.live="witness_id">
                         <option value="">Select Witness</option>
@@ -395,7 +391,6 @@ $wire.on('challenge-exists', (data) => {
                     </select>
                 </div>
 
-                <!-- Agent Selection Grid with improved selection highlighting -->
                 <div class="mb-3">
                     <label class="block mb-2 text-gray-700 dark:text-gray-300">Banned Agent (Optional)</label>
                     @if ($loadingAgents)
@@ -411,7 +406,6 @@ $wire.on('challenge-exists', (data) => {
                         </div>
                     @else
                         <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-                            <!-- None option -->
                             <div class="relative cursor-pointer" wire:click="$set('banned_agent', '')">
                                 <div
                                     class="flex flex-col items-center p-2 transition-all border-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
@@ -423,7 +417,6 @@ $wire.on('challenge-exists', (data) => {
                                     <span class="mt-1 text-sm text-center">None</span>
                                 </div>
                             </div>
-
                             @foreach ($agentsList as $agent)
                                 @php
                                     $agentData = json_encode([
@@ -435,14 +428,14 @@ $wire.on('challenge-exists', (data) => {
                                         !empty($currentSelectedAgent) &&
                                         $currentSelectedAgent['name'] === $agent['displayName'];
                                 @endphp
-
                                 <div class="relative transition-transform cursor-pointer hover:-translate-y-1"
                                     wire:click="$set('banned_agent', '{{ $agentData }}')">
                                     <div
                                         class="flex flex-col items-center p-2 transition-all border-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
                                         {{ $isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-transparent' }}">
                                         <img src="{{ $agent['displayIconSmall'] }}" alt="{{ $agent['displayName'] }}"
-                                            class="w-16 h-16 rounded-full">
+                                            class="w-16 h-16 rounded-full"
+                                            onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3J       nLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMzIiIGZpbGw9IiNGM0Y0RjYiLz4KPHN2ZyB4PSIxNiIgeT0iMTYiIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxuc       z0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMTIgMTJDMTQuMjA5MSAxMiAxNiAxMC4yMDkxIDE2IDhDMTYgNS43OTA5IDE0LjIwOTEgNCA1VjhDNCA5LjEgNC45IDEwIDYgMTBIMThDMTkuMSAxMCAyMCA5LjEgMjAgO       FYxOEMxOS4xIDEwIDE4IDEwIDE3IDEwSDdDNiAxMCA1IDEwLjkgNSAxMloiIGZpbGw9IiM5Q0EzQUYiLz4KPC9zdmc+Cjwvc3ZnPgo='">
                                         <span class="mt-1 text-sm text-center">{{ $agent['displayName'] }}</span>
                                     </div>
                                 </div>
@@ -451,14 +444,14 @@ $wire.on('challenge-exists', (data) => {
                     @endif
                 </div>
 
-                <!-- Action Buttons -->
                 <div class="flex gap-4">
                     <button
-                        class="px-4 py-2 font-semibold text-white transition bg-green-600 rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="px-4 py-2 font-semibold text-white transition rounded disabled:opacity-50 disabled:cursor-not-allowed
+                        {{ $witnessSelected ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400' }}"
                         wire:click.prevent="createChallenge" wire:loading.attr="disabled"
-                        {{ !$witnessSelected ? 'disabled' : '' }}>
-                        <span wire:loading.remove>Confirm Challenge</span>
-                        <span wire:loading>Creating...</span>
+                        @if (!$witnessSelected) disabled @endif>
+                        <span wire:loading.remove wire:target="createChallenge">Confirm Challenge</span>
+                        <span wire:loading wire:target="createChallenge">Creating...</span>
                     </button>
 
                     <button

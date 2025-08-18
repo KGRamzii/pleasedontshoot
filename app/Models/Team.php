@@ -13,6 +13,7 @@ class Team extends Model
         'name',
         'user_id',
         'personal_team',
+        'discord_team_id',
         'status',
         'role',
     ];

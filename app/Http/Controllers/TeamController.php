@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Models\Team;
 use Illuminate\Support\Facades\Auth;
+use App\services\DiscordService;
 
 class TeamController extends Controller
 {
@@ -30,21 +31,25 @@ class TeamController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:teams,name'],
-        ]);
+{
+    $validated = $request->validate([
+        'name' => ['required', 'string', 'max:255', 'unique:teams,name'],
+    ]);
 
-        // Create the team and associate it with the authenticated user
-        $team = Team::create([
-            'name' => $validated['name'],
-            'user_id' => Auth::id(),  // Assuming 'user_id' is the foreign key in the 'teams' table
-            'personal_team' => false,
-        ]);
+    $team = Team::create([
+        'name' => $validated['name'],
+        'user_id' => Auth::id(),
+        'personal_team' => false,
+    ]);
 
-        return redirect()->route('teams.show', $team)
-            ->with('success', 'Team created successfully.');
-    }
+    // Notify Discord (mocked)
+    app(DiscordService::class)
+        ->sendToChannel('TEAM_CHANNEL_ID', "A new team '{$team->name}' has been created!");
+
+    return redirect()->route('teams.show', $team)
+        ->with('success', 'Team created successfully.');
+}
+
 
 
     public function show(Team $team)

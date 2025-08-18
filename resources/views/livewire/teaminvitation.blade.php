@@ -3,24 +3,43 @@
 
 use Livewire\Volt\Component;
 use App\Models\Team;
+use App\Services\DiscordService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 new class extends Component {
     public Team $team;
 
     public function acceptInvitation(Team $team)
     {
+        $user = Auth::user();
         $highestRank = (int) $team->users()->wherePivot('status', 'approved')->max('rank') ?? 0;
 
         $team
             ->users()
-            ->wherePivot('user_id', Auth::id())
+            ->wherePivot('user_id', $user->id)
             ->wherePivot('team_id', $team->id)
             ->wherePivot('status', 'pending')
-            ->updateExistingPivot(Auth::id(), [
+            ->updateExistingPivot($user->id, [
                 'status' => 'approved',
                 'rank' => $highestRank + 1,
             ]);
+
+        // Send announcement to Discord channel
+        if ($user->discord_id) {
+            try {
+                app(DiscordService::class)->sendToChannel(
+                    env('DISCORD_ANNOUNCE_CHANNEL_ID'),
+                    "🎉 **<@{$user->discord_id}>** has joined team **{$team->name}**!"
+                );
+            } catch (\Exception $e) {
+                Log::error('Failed to send Discord announcement', [
+                    'error' => $e->getMessage(),
+                    'user' => $user->id,
+                    'team' => $team->id
+                ]);
+            }
+        }
 
         $this->dispatch('invitation-accepted');
     }

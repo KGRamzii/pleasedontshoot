@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'discord' => [
+        'bot_token' => env('DISCORD_BOT_TOKEN'),
+        'base_url' => env('DISCORD_API_BASE', 'https://discord.com/api/v10'),
+    ],
+
 ];
