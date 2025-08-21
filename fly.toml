@@ -18,7 +18,7 @@ console_command = 'php /var/www/html/artisan tinker'
   APP_NAME = 'PDS'
   APP_TIMEZONE = 'Africa/Johannesburg'
   DB_CONNECTION = 'sqlite'
-  DB_DATABASE = '/var/www/html/storage/database/database.sqlite'
+  DB_DATABASE = '/var/www/html/storage/database/app/database.sqlite'
   DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1296386814730440736/L-3ZrhWi-IsFiZ4a40PnpDTcalEoV57Ojy0i2Pcsng4wi-5P46dF_M3Be4UtETUnwsps'
   LOG_CHANNEL = 'stderr'
   LOG_LEVEL = 'info'
@@ -28,9 +28,9 @@ console_command = 'php /var/www/html/artisan tinker'
   DISCORD_BOT_TOKEN=''
 
 [[mounts]]
-  source = 'storage_dir'
-  destination = '/var/www/html/storage'
-  initial_size = '1GB'
+  source = 'litefs'
+  destination = '/var/www/html/storage/database'
+
 
 [http_service]
   internal_port = 8080
@@ -44,14 +44,14 @@ console_command = 'php /var/www/html/artisan tinker'
 
 [deploy]
   strategy = "immediate"
-  release_command = "php artisan migrate --seed --force"
+  # release_command = "php artisan migrate --seed --force"
 
 
 [[vm]]
   memory = '1gb'
   cpu_kind = 'shared'
-  cpus = 2
+  cpus = 1
 
 [processes]
   app = ""
-  worker = "php artisan queue:listen sqs --sleep=3 --tries=3 --max-time=3600"
+  worker = "php artisan queue:listen"
