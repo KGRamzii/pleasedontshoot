@@ -1324,6 +1324,7 @@
             "support": {
                 "issues": "https://github.com/laravel/prompts/issues",
                 "source": "https://github.com/laravel/prompts/tree/v0.3.6"
+
             },
             "time": "2025-07-07T14:17:42+00:00"
         },
@@ -1389,6 +1390,7 @@
                 "issues": "https://github.com/laravel/sanctum/issues",
                 "source": "https://github.com/laravel/sanctum"
             },
+
             "time": "2025-07-09T19:45:24+00:00"
         },
         {
@@ -4649,7 +4651,9 @@
         },
         {
             "name": "symfony/polyfill-ctype",
-            "version": "v1.33.0",
+
+            "version": "v1.32.0",
+
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-ctype.git",
@@ -4708,7 +4712,9 @@
                 "portable"
             ],
             "support": {
+
                 "source": "https://github.com/symfony/polyfill-ctype/tree/v1.33.0"
+
             },
             "funding": [
                 {
@@ -4732,7 +4738,9 @@
         },
         {
             "name": "symfony/polyfill-intl-grapheme",
+
             "version": "v1.33.0",
+
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-intl-grapheme.git",
@@ -4790,7 +4798,9 @@
                 "shim"
             ],
             "support": {
+
                 "source": "https://github.com/symfony/polyfill-intl-grapheme/tree/v1.33.0"
+
             },
             "funding": [
                 {
@@ -4814,7 +4824,9 @@
         },
         {
             "name": "symfony/polyfill-intl-idn",
+
             "version": "v1.33.0",
+
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-intl-idn.git",
@@ -4877,7 +4889,9 @@
                 "shim"
             ],
             "support": {
+
                 "source": "https://github.com/symfony/polyfill-intl-idn/tree/v1.33.0"
+
             },
             "funding": [
                 {
@@ -4901,7 +4915,9 @@
         },
         {
             "name": "symfony/polyfill-intl-normalizer",
+
             "version": "v1.33.0",
+
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-intl-normalizer.git",
@@ -4962,7 +4978,9 @@
                 "shim"
             ],
             "support": {
+
                 "source": "https://github.com/symfony/polyfill-intl-normalizer/tree/v1.33.0"
+
             },
             "funding": [
                 {
@@ -4986,7 +5004,9 @@
         },
         {
             "name": "symfony/polyfill-mbstring",
+
             "version": "v1.33.0",
+
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-mbstring.git",
@@ -5047,7 +5067,9 @@
                 "shim"
             ],
             "support": {
+
                 "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.33.0"
+
             },
             "funding": [
                 {
@@ -5071,7 +5093,9 @@
         },
         {
             "name": "symfony/polyfill-php80",
+
             "version": "v1.33.0",
+
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-php80.git",
@@ -5131,7 +5155,9 @@
                 "shim"
             ],
             "support": {
+
                 "source": "https://github.com/symfony/polyfill-php80/tree/v1.33.0"
+
             },
             "funding": [
                 {
@@ -5235,7 +5261,9 @@
         },
         {
             "name": "symfony/polyfill-php83",
+
             "version": "v1.33.0",
+
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-php83.git",
@@ -5291,7 +5319,9 @@
                 "shim"
             ],
             "support": {
+
                 "source": "https://github.com/symfony/polyfill-php83/tree/v1.33.0"
+
             },
             "funding": [
                 {
@@ -5315,7 +5345,9 @@
         },
         {
             "name": "symfony/polyfill-uuid",
+
             "version": "v1.33.0",
+
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-uuid.git",
@@ -5374,7 +5406,9 @@
                 "uuid"
             ],
             "support": {
+
                 "source": "https://github.com/symfony/polyfill-uuid/tree/v1.33.0"
+
             },
             "funding": [
                 {
@@ -5703,6 +5737,10 @@
                 },
                 {
                     "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
                     "type": "github"
                 },
                 {
@@ -6330,6 +6368,7 @@
     "packages-dev": [
         {
             "name": "brianium/paratest",
+
             "version": "v7.8.4",
             "source": {
                 "type": "git",
@@ -6340,6 +6379,7 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/paratestphp/paratest/zipball/130a9bf0e269ee5f5b320108f794ad03e275cad4",
                 "reference": "130a9bf0e269ee5f5b320108f794ad03e275cad4",
+
                 "shasum": ""
             },
             "require": {
@@ -6348,6 +6388,7 @@
                 "ext-reflection": "*",
                 "ext-simplexml": "*",
                 "fidry/cpu-core-counter": "^1.2.0",
+
                 "jean85/pretty-package-versions": "^2.1.1",
                 "php": "~8.2.0 || ~8.3.0 || ~8.4.0",
                 "phpunit/php-code-coverage": "^11.0.10",
@@ -6357,17 +6398,20 @@
                 "sebastian/environment": "^7.2.1",
                 "symfony/console": "^6.4.22 || ^7.3.0",
                 "symfony/process": "^6.4.20 || ^7.3.0"
+
             },
             "require-dev": {
                 "doctrine/coding-standard": "^12.0.0",
                 "ext-pcov": "*",
                 "ext-posix": "*",
+
                 "phpstan/phpstan": "^2.1.17",
                 "phpstan/phpstan-deprecation-rules": "^2.0.3",
                 "phpstan/phpstan-phpunit": "^2.0.6",
                 "phpstan/phpstan-strict-rules": "^2.0.4",
                 "squizlabs/php_codesniffer": "^3.13.2",
                 "symfony/filesystem": "^6.4.13 || ^7.3.0"
+
             },
             "bin": [
                 "bin/paratest",
@@ -6407,7 +6451,9 @@
             ],
             "support": {
                 "issues": "https://github.com/paratestphp/paratest/issues",
+
                 "source": "https://github.com/paratestphp/paratest/tree/v7.8.4"
+
             },
             "funding": [
                 {
@@ -6419,7 +6465,9 @@
                     "type": "paypal"
                 }
             ],
+
             "time": "2025-06-23T06:07:21+00:00"
+
         },
         {
             "name": "doctrine/deprecations",
@@ -7549,6 +7597,7 @@
         },
         {
             "name": "pestphp/pest",
+
             "version": "v3.8.4",
             "source": {
                 "type": "git",
@@ -7574,13 +7623,16 @@
             "conflict": {
                 "filp/whoops": "<2.16.0",
                 "phpunit/phpunit": ">11.5.33",
+
                 "sebastian/exporter": "<6.0.0",
                 "webmozart/assert": "<1.11.0"
             },
             "require-dev": {
                 "pestphp/pest-dev-tools": "^3.4.0",
+
                 "pestphp/pest-plugin-type-coverage": "^3.6.1",
                 "symfony/process": "^7.3.0"
+
             },
             "bin": [
                 "bin/pest"
@@ -7645,7 +7697,9 @@
             ],
             "support": {
                 "issues": "https://github.com/pestphp/pest/issues",
+
                 "source": "https://github.com/pestphp/pest/tree/v3.8.4"
+
             },
             "funding": [
                 {
@@ -7657,7 +7711,9 @@
                     "type": "github"
                 }
             ],
+
             "time": "2025-08-20T19:12:42+00:00"
+
         },
         {
             "name": "pestphp/pest-plugin",
@@ -8622,6 +8678,7 @@
         },
         {
             "name": "phpunit/phpunit",
+
             "version": "11.5.33",
             "source": {
                 "type": "git",
@@ -8632,6 +8689,7 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/5965e9ff57546cb9137c0ff6aa78cb7442b05cf6",
                 "reference": "5965e9ff57546cb9137c0ff6aa78cb7442b05cf6",
+
                 "shasum": ""
             },
             "require": {
@@ -8641,17 +8699,20 @@
                 "ext-mbstring": "*",
                 "ext-xml": "*",
                 "ext-xmlwriter": "*",
+
                 "myclabs/deep-copy": "^1.13.4",
                 "phar-io/manifest": "^2.0.4",
                 "phar-io/version": "^3.2.1",
                 "php": ">=8.2",
                 "phpunit/php-code-coverage": "^11.0.10",
+
                 "phpunit/php-file-iterator": "^5.1.0",
                 "phpunit/php-invoker": "^5.0.1",
                 "phpunit/php-text-template": "^4.0.1",
                 "phpunit/php-timer": "^7.0.1",
                 "sebastian/cli-parser": "^3.0.2",
                 "sebastian/code-unit": "^3.0.3",
+
                 "sebastian/comparator": "^6.3.2",
                 "sebastian/diff": "^6.0.2",
                 "sebastian/environment": "^7.2.1",
@@ -8659,6 +8720,7 @@
                 "sebastian/global-state": "^7.0.2",
                 "sebastian/object-enumerator": "^6.0.1",
                 "sebastian/type": "^5.1.3",
+
                 "sebastian/version": "^5.0.2",
                 "staabm/side-effects-detector": "^1.0.5"
             },
@@ -8703,7 +8765,9 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
+
                 "source": "https://github.com/sebastianbergmann/phpunit/tree/11.5.33"
+
             },
             "funding": [
                 {
@@ -8727,7 +8791,9 @@
                     "type": "tidelift"
                 }
             ],
+
             "time": "2025-08-16T05:19:02+00:00"
+
         },
         {
             "name": "sebastian/cli-parser",
