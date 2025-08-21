@@ -19,7 +19,7 @@ console_command = 'php /var/www/html/artisan tinker'
   APP_TIMEZONE = 'Africa/Johannesburg'
   DB_CONNECTION = 'sqlite'
 
-  DB_DATABASE = '/var/www/html/storage/database/app/database.sqlite'
+  DB_DATABASE = '/var/www/html/storage/database/database.sqlite'
 
   DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1296386814730440736/L-3ZrhWi-IsFiZ4a40PnpDTcalEoV57Ojy0i2Pcsng4wi-5P46dF_M3Be4UtETUnwsps'
   LOG_CHANNEL = 'stderr'
@@ -29,7 +29,7 @@ console_command = 'php /var/www/html/artisan tinker'
   SESSION_SECURE_COOKIE = 'true'
   DISCORD_BOT_TOKEN=''
 
-[[mounts]]
+[mounts]
   source = 'litefs'
   destination = '/var/www/html/storage/database'
 
