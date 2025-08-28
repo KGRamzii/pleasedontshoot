@@ -116,18 +116,42 @@ class DiscordService
     /**
      * Send a direct message to a user by Discord ID
      */
-    public function sendDirectMessage($discordUserId, $message)
+    public function sendDirectMessage($discordUserId, $message, $embed = null)
     {
         try {
             Log::info('Attempting to send Discord DM', [
                 'user_id' => $discordUserId,
-                'message' => $message
+                'has_message' => !empty($message),
+                'has_embed' => !is_null($embed)
             ]);
 
-            $response = Http::post("{$this->base}/send-dm", [
+            $payload = [
                 'user_id' => $discordUserId,
-                'message' => $message
-            ]);
+            ];
+
+            // Add message if not empty
+            if (!empty($message)) {
+                $payload['message'] = $message;
+            }
+
+            // Add embed if present
+            if ($embed) {
+                $payload['embed_title'] = $embed['title'] ?? null;
+                $payload['embed_description'] = $embed['description'] ?? null;
+                $payload['embed_color'] = $embed['color'] ?? null;
+                
+                // Handle fields if present
+                if (!empty($embed['fields'])) {
+                    $payload['embed_fields'] = $embed['fields'];
+                }
+                
+                // Add timestamp if present
+                if (!empty($embed['timestamp'])) {
+                    $payload['embed_timestamp'] = $embed['timestamp'];
+                }
+            }
+
+            $response = Http::post("{$this->base}/send-dm", $payload);
 
             if (!$response->successful()) {
                 Log::error('Discord DM failed', [
@@ -245,26 +269,67 @@ class DiscordService
      */
     public function sendRankingsUpdate($team)
     {
-        $users = $team->users()
-            ->orderByPivot('rank')
-            ->get();
-
+        // Use the cached rankings
+        $users = $team->getRankings();
+        
+        // Generate the ranking list with detailed information
         $rankList = '';
+        $totalPlayers = $users->count();
+        $topRank = $users->min('pivot.rank');
+        $bottomRank = $users->max('pivot.rank');
+
         foreach ($users as $index => $user) {
             $position = $index + 1;
+            
+            // Enhanced position indicators
             $crown = $position === 1 ? '👑 ' : '';
             $medal = $position === 2 ? '🥈 ' : ($position === 3 ? '🥉 ' : '');
-            $rankList .= "{$crown}{$medal}**Rank {$user->pivot->rank}**: <@{$user->discord_id}>\n";
+            $position_indicator = str_pad($position, 2, '0', STR_PAD_LEFT); // Makes "1" into "01" for better readability
+            
+            // Format each player's entry
+            $rankList .= "{$crown}{$medal}**#{$position_indicator}** • Rank {$user->pivot->rank} • <@{$user->discord_id}>";
+            
+            // Add alias if exists
+            if (!empty($user->alias)) {
+                $rankList .= " (" . $user->alias . ")";
+            }
+            
+            $rankList .= "\n";
         }
 
-        $embed = [
-            'title' => '📊 Rankings Updated!',
-            'description' => "**{$team->name} Rankings**\n\n" . $rankList,
-            'color' => $this->colors['info']
+        // Create fields for additional information
+        $fields = [
+            [
+                'name' => '👥 Team Information',
+                'value' => "**Owner:** <@{$team->owner->discord_id}>\n" .
+                          "**Total Players:** {$totalPlayers}\n" .
+                          "**Rank Range:** {$topRank} - {$bottomRank}",
+                'inline' => true
+            ],
+            [
+                'name' => '📈 Statistics',
+                'value' => "**Top 3 Players:** " . ($totalPlayers >= 3 ? "✅" : "Need " . (3 - $totalPlayers) . " more") . "\n" .
+                          "**Active Challenges:** " . $team->challenges()->where('status', 'pending')->count() . "\n" .
+                          "**Last Updated:** " . now()->format('M j, Y g:i A'),
+                'inline' => true
+            ]
         ];
 
+        $embed = [
+            'title' => '📊 Rankings Updated in ' . $team->name,
+            'description' => "**Current Rankings**\n\n" . $rankList,
+            'fields' => $fields,
+            'color' => $this->colors['info'],
+            'timestamp' => now()->toIso8601String()
+        ];
+
+        // Add team icon if available
+        if ($team->icon_url) {
+            $embed['thumbnail'] = ['url' => $team->icon_url];
+        }
+
         return $this->sendToChannel(
-            env('DISCORD_ANNOUNCE_CHANNEL_ID'),
+            $team->discord_team_id ?? env('DISCORD_ANNOUNCE_CHANNEL_ID'),
             '',
             $embed
         );

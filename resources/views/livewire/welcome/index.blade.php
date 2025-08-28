@@ -2,29 +2,41 @@
 
 use Livewire\Volt\Component;
 use App\Models\User;
-
+use App\Models\Team;
 use App\Models\Challenge;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
 use App\Models\RankHistory;
 
 new class extends Component {
     public $topRankedUsers;
-    public $recentMatches; // Add this property
-
+    public $recentMatches;
 
     public function mount()
     {
         $this->loadTopRankedUsers();
-        $this->loadRecentMatches(); // Load recent matches on mount
-
+        $this->loadRecentMatches();
     }
 
     public function loadTopRankedUsers()
     {
-        $this->topRankedUsers = User::orderBy('rank')->take(3)->get();
-    }
+        $team = Auth::check() ? Auth::user()->teams()->first() : null;
 
+        if ($team) {
+            // DEBUG: Log to verify code is deployed
+            \Log::info('Loading top ranked users - code updated');
+            
+            // Always order by pivot rank
+            $this->topRankedUsers = $team->users()
+                ->withPivot('rank')
+                ->orderByPivot('rank', 'asc')
+                ->take(3)
+                ->get();
+        } else {
+            // Return an empty collection when there's no team
+            $this->topRankedUsers = collect();
+            \Log::info('No team found - returning empty collection');
+        }
+    }
 
     public function loadRecentMatches()
     {
@@ -34,7 +46,6 @@ new class extends Component {
             ->take(5)
             ->get()
             ->map(function ($match) {
-                // Get rank histories for this match
                 $rankHistories = $match->rankHistories->groupBy('user_id');
 
                 foreach ($rankHistories as $userId => $histories) {
@@ -59,46 +70,43 @@ new class extends Component {
                 return $match;
             });
     }
+};?>
 
-}; ?>
-
-<div class="bg-gradient-to-b from-gray-900 via-gray-800 to-blue-900">
-    <!-- Hero Section -->
-    <div class="relative overflow-hidden">
-
-        <!-- Background Pattern -->
+<div>
+    <div class="bg-gradient-to-b from-gray-900 via-gray-800 to-blue-900">
+        <!-- Hero Section -->
+        <div class="relative overflow-hidden">
+            <!-- Background Pattern -->
 
         <div class="absolute inset-0 bg-black opacity-50"></div>
         <div class="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-purple-500/30">
             <img src="{{ asset('valArt/Valorant_EP-8-Teaser_The-arrival.jpg') }}">
         </div>
 
-        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
             <div class="text-center">
-                <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight">
-
+                <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white tracking-tight">
                     Valorant <span class="text-pink-500">Pink</span> Slip
                     <span class="block text-blue-400">Challenge & Climb</span>
                 </h1>
 
-
-                <p class="mt-6 max-w-2xl mx-auto text-xl text-gray-300">
+                <p class="mt-4 sm:mt-6 max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-gray-300">
                     Challenge other players, prove your worth, and climb the ranks in our competitive Valorant
                     community.
                 </p>
-                <div class="mt-10 flex justify-center space-x-4">
+                <div class="mt-8 sm:mt-10 flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
                     @auth
                         <a href="{{ route('dashboard') }}"
-                            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                            class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200 shadow-lg">
                             Go to Dashboard
                         </a>
                     @else
                         <a href="{{ route('login') }}"
-                            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                            class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200 shadow-lg">
                             Continue
                         </a>
                         <a href="{{ route('register') }}"
-                            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-gray-200 bg-gray-800 hover:bg-gray-700">
+                            class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-md text-gray-200 bg-gray-800 hover:bg-gray-700 transition-colors duration-200 shadow-lg">
                             Get Started
                         </a>
                     @endauth
@@ -151,7 +159,7 @@ new class extends Component {
                             </div>
                             <div class="mt-4 text-center">
                                 <h3 class="text-xl font-semibold text-white">{{ $user->name }}</h3>
-                                <p class="mt-2 text-gray-400">Rank #{{ $user->rank }}</p>
+                                    <p class="mt-2 text-gray-400">Rank #{{ $user->pivot->rank }}</p>
                                 <div class="mt-4">
                                     <span
                                         class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-900 text-blue-200">
@@ -184,25 +192,23 @@ new class extends Component {
                 @foreach ($recentMatches as $match)
                     <div
                         class="p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-lg shadow-lg">
-                        <div class="flex justify-between items-center">
-                            <div class="flex items-center space-x-3">
-                                <span
-                                    class="text-lg font-semibold text-gray-800 dark:text-white">{{ optional($match->challenger)->name }}</span>
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+                                <span class="text-lg font-semibold text-gray-800 dark:text-white">{{ optional($match->challenger)->name }}</span>
                                 <span class="text-gray-500 dark:text-gray-400">vs.</span>
-                                <span
-                                    class="text-lg font-semibold text-gray-800 dark:text-white">{{ optional($match->opponent)->name }}</span>
+                                <span class="text-lg font-semibold text-gray-800 dark:text-white">{{ optional($match->opponent)->name }}</span>
                             </div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Witness:
-                                <strong>{{ optional($match->witness)->name }}</strong></p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Witness: <strong>{{ optional($match->witness)->name }}</strong>
+                            </p>
                         </div>
 
-                        <div
-                            class="mt-4 flex justify-between items-center border-t border-gray-200 dark:border-gray-600 pt-4">
-                            <div class="space-y-2">
-                                <p class="text-gray-500 dark:text-gray-400">
+                        <div class="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-t border-gray-200 dark:border-gray-600 pt-4">
+                            <div class="space-y-2 sm:space-y-0 sm:space-x-4 flex flex-col sm:flex-row">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">
                                     <span class="font-semibold">Date:</span> {{ $match->updated_at->format('M d, Y') }}
                                 </p>
-                                <p class="text-gray-500 dark:text-gray-400">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">
                                     <span class="font-semibold">Status:</span> {{ ucfirst($match->status) }}
                                 </p>
                             </div>
@@ -311,4 +317,5 @@ new class extends Component {
 
     </footer> --}}
 
+    </div>
 </div>

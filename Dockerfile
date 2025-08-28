@@ -67,13 +67,7 @@ RUN composer install --optimize-autoloader --no-dev \
     ' bootstrap/app.php; \
     if [ -d .fly ]; then cp .fly/entrypoint.sh /entrypoint; chmod +x /entrypoint; fi;
 
-# LITEFS Dependencies
-RUN apt-get update -y && apt-get install -y ca-certificates fuse3 sqlite3
-# LITEFS Binary
-COPY --from=flyio/litefs:0.5 /usr/local/bin/litefs /usr/local/bin/litefs
-# LITEFS config file move to proper location at /etc
-COPY etc/litefs.yml /etc/litefs.yml
-COPY etc/fuse.conf /etc/fuse.conf
+
 
 
 # Multi-stage build: Build static assets

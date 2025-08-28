@@ -25,7 +25,7 @@ new class extends Component {
                 'name' => $this->name,
                 'discord_team_id' => $this->discord_team_id,
                 'user_id' => Auth::id(),
-                'personal_team' => false,
+                'personal_team' => 'false',
             ]);
 
             // Attach creator as admin

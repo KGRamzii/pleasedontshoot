@@ -19,8 +19,8 @@
 
 <body class="bg-gray-900 antialiased">
     <!-- Navigation -->
-    <header>
-        <div class="px-3 py-2">
+    <header class="fixed top-0 left-0 right-0 z-50 bg-gray-900/95 backdrop-blur-sm">
+        <div class="px-4 py-3 sm:px-6">
             @if (Route::has('login'))
                 <livewire:welcome.navigation />
             @endif
@@ -28,13 +28,13 @@
     </header>
 
     <!-- Main Content -->
-    <main>
+    <main class="pt-16"> <!-- Added padding-top to account for fixed header -->
         <!-- Hero Section Component -->
         <livewire:welcome.index />
     </main>
 
     <!-- Simplified Footer -->
-    <footer class="bg-gray-900">
+    <footer class="bg-gray-900/95 backdrop-blur-sm">
         <div class="max-w-7xl mx-auto px-6 py-12">
             <div class="md:flex md:items-center md:justify-between">
                 <div class="flex justify-center space-x-6 md:order-2">

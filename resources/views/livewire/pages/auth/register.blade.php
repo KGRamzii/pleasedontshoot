@@ -43,7 +43,7 @@ new #[Layout('layouts.guest')] class extends Component {
         $team = Team::create([
             'user_id' => $user->id,
             'name' => $this->team_name,
-            'personal_team' => true,
+            'personal_team' => 'true',
         ]);
 
         // // Update user with current team
