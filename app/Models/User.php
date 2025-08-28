@@ -6,16 +6,14 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Relations;
 
-class User extends Authenticatable //implements MustVerifyEmail
+class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
     protected $fillable = [
         'name',
         'alias',
-        'rank',
         'discord_id',
         'email',
         'password',
@@ -31,23 +29,23 @@ class User extends Authenticatable //implements MustVerifyEmail
         'password' => 'hashed',
     ];
 
-    public function challengesIssued() // Corrected spelling
+    // 🏆 Challenges
+    public function challengesIssued()
     {
         return $this->hasMany(Challenge::class, 'challenger_id');
     }
 
-    public function challengesReceived() // Corrected spelling
+    public function challengesReceived()
     {
         return $this->hasMany(Challenge::class, 'opponent_id');
     }
 
-    public function rankHistory() // Corrected spelling
+    public function rankHistory()
     {
         return $this->hasMany(RankHistory::class);
     }
 
-    //Team support
-
+    // 👥 Teams
     public function currentTeam()
     {
         return $this->belongsTo(Team::class, 'current_team_id');
@@ -61,16 +59,9 @@ class User extends Authenticatable //implements MustVerifyEmail
     public function teams()
     {
         return $this->belongsToMany(Team::class)
-            ->withPivot('role', 'status', 'rank')
-            // ->orderBy('pivot.rank')
+            ->withPivot(['role', 'status', 'rank'])
             ->withTimestamps();
     }
-    //In User model
-    // public function teams()
-    // {
-    //     return $this->hasMany(Team::class)->wherePivot('status');
-    // }
-
 
     public function pendingInvitations()
     {
@@ -79,16 +70,7 @@ class User extends Authenticatable //implements MustVerifyEmail
 
     public function allTeams()
     {
-        return $this->ownedTeams->merge($this->teams);
+        // Uses collections but makes sure both relations are loaded
+        return $this->ownedTeams()->get()->merge($this->teams()->get());
     }
-
-    // protected static function booted()
-    // {
-    //     static::created(function ($user) {
-    //         $user->ownedTeams()->create([
-    //             'name' => $user->name . "'s Team",
-    //             'personal_team' => true,
-    //         ]);
-    //     });
-    // }
 }

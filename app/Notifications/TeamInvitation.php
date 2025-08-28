@@ -26,23 +26,82 @@ class TeamInvitation extends Notification implements ShouldQueue
 
     public function toDiscord($notifiable)
     {
-        if (!$notifiable->discord_id) {
-            Log::info('Skipping Discord notification - no discord_id', [
-                'user' => $notifiable->id,
-                'email' => $notifiable->email
+        try {
+            if (!$notifiable->discord_id) {
+                Log::warning('Cannot send Discord notification - User has no discord_id', [
+                    'user_id' => $notifiable->id,
+                    'email' => $notifiable->email,
+                    'team_id' => $this->team->id,
+                    'team_name' => $this->team->name
+                ]);
+                return null;
+            }
+
+            Log::info('Preparing Discord team invitation message', [
+                'user_id' => $notifiable->id,
+                'discord_id' => $notifiable->discord_id,
+                'team_id' => $this->team->id,
+                'team_name' => $this->team->name
+            ]);
+
+            $inviteUrl = route('teams.invitations');
+            $ownerName = $this->team->owner ? $this->team->owner->name : 'Unknown';
+            $ownerDiscordId = $this->team->owner ? $this->team->owner->discord_id : null;
+
+            // Create an embedded message for better formatting
+            $embed = [
+                'title' => '🎮 New Team Invitation!',
+                'description' => "You have been invited to join a team!\n\n".
+                               "Please respond to this invitation using the link below.",
+                'color' => 0x5865F2, // Discord Blurple
+                'fields' => [
+                    [
+                        'name' => '🏷️ Team Name',
+                        'value' => "**{$this->team->name}**",
+                        'inline' => true
+                    ],
+                    [
+                        'name' => '👑 Team Owner',
+                        'value' => $ownerDiscordId ? "<@{$ownerDiscordId}>" : $ownerName,
+                        'inline' => true
+                    ],
+                    [
+                        'name' => '🔗 Response Link',
+                        'value' => $inviteUrl,
+                        'inline' => false
+                    ]
+                ],
+                'timestamp' => now()->toIso8601String()
+            ];
+
+            // Send to both DM and team channel if it exists
+            if ($this->team->discord_team_id) {
+                app(DiscordService::class)->sendToChannel(
+                    $this->team->discord_team_id,
+                    '',
+                    [
+                        'title' => '🎮 New Team Member Invited',
+                        'description' => "Hey <@{$notifiable->discord_id}>, you've been invited to join **{$this->team->name}**!\n\n" .
+                                       "Please check your DMs for the invitation link.",
+                        'color' => 0x5865F2
+                    ]
+                );
+            }
+
+            Log::info('Discord message prepared', [
+                'has_team_channel' => (bool)$this->team->discord_team_id,
+                'user_discord_id' => $notifiable->discord_id
+            ]);
+
+            return $embed;
+        } catch (\Exception $e) {
+            Log::error('Error preparing Discord message', [
+                'error' => $e->getMessage(),
+                'user_id' => $notifiable->id ?? 'unknown',
+                'team_id' => $this->team->id
             ]);
             return null;
         }
-        
-        Log::info('Preparing Discord invitation message', [
-            'user' => $notifiable->id,
-            'discord_id' => $notifiable->discord_id,
-            'team' => $this->team->name
-        ]);
-        
-        $inviteUrl = route('teams.invitations');
-        return "🎮 You have been invited to join the team: {$this->team->name}!\n\n".
-               "Click here to respond to the invitation: {$inviteUrl}";
     }
 
     public function toMail($notifiable): MailMessage
