@@ -13,8 +13,8 @@ return new class extends Migration {
         Schema::create('teams', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->index();
-            $table->string('name')->unique;
-            $table->boolean('personal_team');
+            $table->string('name')->unique();
+            $table->boolean('personal_team')->default(false);
             $table->string('discord_team_id')->nullable();
             $table->timestamps();
         });

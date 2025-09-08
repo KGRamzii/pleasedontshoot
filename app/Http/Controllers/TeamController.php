@@ -39,7 +39,7 @@ class TeamController extends Controller
     $team = Team::create([
         'name' => $validated['name'],
         'user_id' => Auth::id(),
-        'personal_team' => false,
+        'personal_team' => 'false',
     ]);
 
     // Notify Discord (mocked)
