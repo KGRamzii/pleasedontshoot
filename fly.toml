@@ -18,7 +18,7 @@ console_command = 'php /var/www/html/artisan tinker'
   APP_NAME = 'PDS'
   APP_TIMEZONE = 'Africa/Johannesburg'
   APP_URL='https://pleasedontshoot.fly.dev'
-  ASSET_URL = "https://pleasedontshoot.fly.dev"
+  ASSET_URL = "${APP_URL}"
 
   DB_CONNECTION='pgsql'
   DB_HOST='database-1.cvo0wwy6yskf.af-south-1.rds.amazonaws.com'
