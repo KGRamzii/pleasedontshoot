@@ -56,16 +56,20 @@ new class extends Component {
 
 ?>
 
+
 <div class="container p-2 mx-auto sm:p-4 lg:p-6">
     <div class="overflow-hidden shadow-2xl bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl">
+
         <!-- Header with Gradient Overlay -->
         <div class="relative p-6 border-b border-gray-700/50">
             <div class="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20"></div>
             <div class="relative flex items-center justify-between">
                 <div>
+
                     <h1 class="flex items-center text-2xl font-bold text-white">
                         <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+
                                 d="M13 10V3L4 14h7v7l9-11h-7z"/>
                         </svg>
                         Rankings
@@ -91,6 +95,7 @@ new class extends Component {
                 @endforeach
             </div>
         </div>
+
 
     <!-- Rankings List as Responsive Table with Styles and Icons -->
     <div class="overflow-x-auto">
@@ -155,6 +160,7 @@ new class extends Component {
                                     {{ $index < 3 ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white' : 'bg-gray-700 text-gray-300' }}
                                     group-hover:scale-105 group-hover:shadow-lg transition-all duration-200">
                                     Rank {{ $user->rank }}
+
                                 </span>
                             </td>
                         </tr>
@@ -167,6 +173,7 @@ new class extends Component {
 
     <!-- Enhanced Refresh Button -->
     <div class="flex justify-end mt-6">
+
     <button wire:click="loadTeamRankings"
             wire:loading.attr="disabled"
             wire:loading.class="opacity-50 cursor-not-allowed"
@@ -186,4 +193,5 @@ new class extends Component {
         </span> --}}
     </button>
 </div>
+
 </div>

@@ -8,11 +8,13 @@
                 <!-- User Stats Card -->
                 <div class="hidden sm:block p-3 bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg shadow-lg">
                     <div class="text-white text-sm">
+
                         @php
                             $userTeam = Auth::user()->teams()->select('team_user.rank')->first();
                         @endphp
                         <span class="font-semibold">Your Rank:</span> 
                         <span class="ml-1">#{{ $userTeam?->pivot->rank ?? 'N/A' }}</span>
+
                     </div>
                 </div>
             </div>

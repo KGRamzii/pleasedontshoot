@@ -38,7 +38,9 @@ new #[Layout('layouts.guest')] class extends Component {
         // Create user with rank
         $user = User::create($validated);
 
+
         // Team creation removed from registration process
+
 
         // // Update user with current team
         // $user->current_team_id = $team->id;
