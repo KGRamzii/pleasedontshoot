@@ -26,7 +26,7 @@ console_command = 'php /var/www/html/artisan tinker'
   DB_DATABASE='pds-production'
   DB_USERNAME='postgres'
 
-  #note, remove after reaserching redis on fly.ioS
+  #note, remove after reaserching redis on fly.io
   REDIS_CLIENT='phpredis'
   REDIS_HOST='127.0.0.1'
   REDIS_PASSWORD='null'
