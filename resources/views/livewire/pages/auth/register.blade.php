@@ -15,7 +15,6 @@ new #[Layout('layouts.guest')] class extends Component {
     public string $email = '';
     public string $password = '';
     public string $password_confirmation = '';
-    public string $team_name = '';
 
     /**
      * Handle an incoming registration request.
@@ -39,12 +38,9 @@ new #[Layout('layouts.guest')] class extends Component {
         // Create user with rank
         $user = User::create($validated);
 
-        // Create team
-        $team = Team::create([
-            'user_id' => $user->id,
-            'name' => $this->team_name,
-            'personal_team' => 'true',
-        ]);
+
+        // Team creation removed from registration process
+
 
         // // Update user with current team
         // $user->current_team_id = $team->id;
@@ -76,13 +72,7 @@ new #[Layout('layouts.guest')] class extends Component {
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
-        {{-- <!-- Team Name -->
-        <div class="mt-4">
-            <x-input-label for="team_name" :value="__('Team Name')" />
-            <x-text-input wire:model="team_name" id="team_name" class="block w-full mt-1" type="text"
-                name="team_name" required />
-            <x-input-error :messages="$errors->get('team_name')" class="mt-2" />
-        </div> --}}
+
 
         <!-- Password -->
         <div class="mt-4">
