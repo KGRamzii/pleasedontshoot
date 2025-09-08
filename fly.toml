@@ -57,8 +57,7 @@ console_command = 'php /var/www/html/artisan tinker'
 
 
 [deploy]
-  strategy = "immediate"
-  
+  strategy = "rolling"
   release_command = "php artisan migrate --force"
 
 
