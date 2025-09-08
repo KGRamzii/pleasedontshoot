@@ -9,41 +9,48 @@ use Illuminate\Support\Facades\Auth;
 
 class Rankings extends Component
 {
-    public $rankings = [];
-    public $team;
+    public $teams;
+    public $selectedTeamId;
+    public $teamRankings;
 
     public function mount()
     {
-        $this->team = Auth::user()->teams()->first();
-        if ($this->team) {
-            $this->loadRankings();
+        $this->teams = Auth::user()->teams;
+        if ($this->teams->isEmpty()) {
+            $this->teamRankings = collect();
+            $this->selectedTeamId = null;
+            return;
+        }
+        $this->selectedTeamId = $this->teams->first()->id;
+        $this->loadTeamRankings();
+    }
+
+    public function loadTeamRankings()
+    {
+        if ($this->selectedTeamId) {
+            $this->teamRankings = Auth::user()->teams()->where('teams.id', $this->selectedTeamId)
+                ->first()
+                ->users()
+                ->select('users.*', 'team_user.rank')
+                ->orderBy('team_user.rank', 'asc')
+                ->get();
+        } else {
+            $this->teamRankings = collect();
         }
     }
 
-    public function loadRankings()
+    public function switchTeam($teamId)
     {
-        if (!$this->team) return;
-
-        $cacheKey = "team_{$this->team->id}_rankings";
-        
-        $this->rankings = Cache::remember($cacheKey, 300, function () {
-            return $this->team->users()
-                ->select('users.id', 'users.name', 'users.alias', 'team_user.rank')
-                ->orderByPivot('rank', 'asc')
-                ->get()
-                ->map(function ($user) {
-                    return [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'alias' => $user->alias,
-                        'rank' => $user->pivot->rank,
-                    ];
-                });
-        });
+        $this->selectedTeamId = $teamId;
+        $this->loadTeamRankings();
     }
 
     public function render()
     {
-        return view('livewire.rankings');
+        return view('livewire.rankings', [
+            'teams' => $this->teams,
+            'selectedTeamId' => $this->selectedTeamId,
+            'teamRankings' => $this->teamRankings,
+        ]);
     }
 }
