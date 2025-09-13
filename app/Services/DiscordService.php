@@ -116,9 +116,14 @@ class DiscordService
     /**
      * Send a direct message to a user by Discord ID
      */
-    public function sendDirectMessage($discordUserId, $message, $embed = null)
+    public function sendDirectMessage($discordUserId, $message = '', $embed = null)
     {
         try {
+            // Ensure we have either a message or an embed
+            if (empty($message) && empty($embed)) {
+                throw new \InvalidArgumentException('Either message or embed must be provided');
+            }
+
             Log::info('Attempting to send Discord DM', [
                 'user_id' => $discordUserId,
                 'has_message' => !empty($message),
@@ -127,12 +132,8 @@ class DiscordService
 
             $payload = [
                 'user_id' => $discordUserId,
+                'message' => $message, // Fallback message
             ];
-
-            // Add message if not empty
-            if (!empty($message)) {
-                $payload['message'] = $message;
-            }
 
             // Add embed if present
             if ($embed) {
@@ -142,7 +143,7 @@ class DiscordService
                 
                 // Handle fields if present
                 if (!empty($embed['fields'])) {
-                    $payload['embed_fields'] = $embed['fields'];
+                    $payload['embed_fields'] = $embed['fields']; // No need to json_encode, Http client will handle it
                 }
                 
                 // Add timestamp if present

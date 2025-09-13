@@ -38,7 +38,7 @@ new #[Layout('layouts.guest')] class extends Component
 
 <div>
     <div class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-        {{ __('Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.') }}
+        {{ __('Forgot your password? No problem. Enter your email address and we will send you a password reset link via Discord DM.') }}
     </div>
 
     <!-- Session Status -->
@@ -52,9 +52,18 @@ new #[Layout('layouts.guest')] class extends Component
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
+        <div class="mt-4 text-sm text-gray-600 dark:text-gray-400">
+            <p class="mb-2">⚠️ Please note:</p>
+            <ul class="list-disc list-inside space-y-1">
+                <li>You must have a Discord ID linked to your account to receive the reset link</li>
+                <li>The reset link will be sent to your Discord DMs</li>
+                <li>Make sure you have DMs enabled for our bot</li>
+            </ul>
+        </div>
+
         <div class="flex items-center justify-end mt-4">
             <x-primary-button>
-                {{ __('Email Password Reset Link') }}
+                {{ __('Send Reset Link via Discord') }}
             </x-primary-button>
         </div>
     </form>
