@@ -205,19 +205,7 @@ class DiscordService
         $fields = [];
 
         if ($type === 'completed' && isset($challenge->winner) && isset($challenge->loser)) {
-            // Log the challenge data for debugging
-            Log::info('Discord notification data', [
-                'challenge_id' => $challenge->id,
-                'winner_name' => $challenge->winner->name ?? 'Unknown',
-                'loser_name' => $challenge->loser->name ?? 'Unknown',
-                'winner_old_rank' => $challenge->winner_old_rank ?? 'Missing',
-                'winner_new_rank' => $challenge->winner_new_rank ?? 'Missing',
-                'loser_old_rank' => $challenge->loser_old_rank ?? 'Missing',
-                'loser_new_rank' => $challenge->loser_new_rank ?? 'Missing',
-                'ranks_swapped' => $challenge->ranks_swapped ?? false,
-            ]);
-
-            // Use the NEW ranks for current display (after the challenge outcome)
+            // Use the rank information passed from the component
             $winnerCurrentRank = $challenge->winner_new_rank ?? 'Unknown';
             $loserCurrentRank = $challenge->loser_new_rank ?? 'Unknown';
 
@@ -240,13 +228,13 @@ class DiscordService
             ];
 
             // Add rank change information
-            if (isset($challenge->ranks_swapped) && $challenge->ranks_swapped === true) {
-                $rankChangeText = "⚡ **Ranks Swapped!** ";
-                $rankChangeText .= "**{$challenge->winner->name}** moved from rank {$challenge->winner_old_rank} to {$challenge->winner_new_rank}, ";
-                $rankChangeText .= "**{$challenge->loser->name}** moved from rank {$challenge->loser_old_rank} to {$challenge->loser_new_rank}.";
+            if (isset($challenge->ranks_swapped) && $challenge->ranks_swapped) {
+                $rankChangeText = "📈 **Ranks Swapped!**\n";
+                $rankChangeText .= "🏅 **{$challenge->winner->name}:** {$challenge->winner_old_rank} → {$challenge->winner_new_rank}\n";
+                $rankChangeText .= "💔 **{$challenge->loser->name}:** {$challenge->loser_old_rank} → {$challenge->loser_new_rank}";
 
                 $fields[] = [
-                    'name' => '📊 Rank Status',
+                    'name' => '📊 Rank Changes',
                     'value' => $rankChangeText,
                     'inline' => false
                 ];
@@ -279,29 +267,37 @@ class DiscordService
             $fields = [
                 [
                     'name' => '👊 Challenger',
-                    'value' => "@{$challenger->name} (Rank: {$challengerRank})",
+                    'value' => "<@{$challenger->discord_id}> (Rank: {$challengerRank})",
                     'inline' => true
                 ],
                 [
                     'name' => '🎯 Opponent',
-                    'value' => "@{$opponent->name} (Rank: {$opponentRank})",
+                    'value' => "<@{$opponent->discord_id}> (Rank: {$opponentRank})",
                     'inline' => true
                 ],
                 [
                     'name' => '👀 Witness',
-                    'value' => "@{$witness->name}",
+                    'value' => "<@{$witness->discord_id}>",
                     'inline' => true
                 ],
             ];
         }
 
         // Add banned agent if present
-        if (($type === 'created' || $type === 'completed') && $bannedAgentData) {
-            $fields[] = [
-                'name' => '🚫 Banned Agent',
-                'value' => "**{$bannedAgentData['name']}**",
-                'inline' => true,
-            ];
+        if ($type === 'created' || $type === 'completed') {
+            if ($bannedAgentData) {
+                $fields[] = [
+                    'name' => '🚫 Banned Agent',
+                    'value' => "**{$bannedAgentData['name']}**",
+                    'inline' => true,
+                ];
+            } else if ($type === 'created') {
+                $fields[] = [
+                    'name' => '🚫 Banned Agent',
+                    'value' => 'None',
+                    'inline' => true,
+                ];
+            }
         }
 
         // Build description including fields
@@ -358,7 +354,7 @@ class DiscordService
             $position_indicator = str_pad($position, 2, '0', STR_PAD_LEFT); // Makes "1" into "01" for better readability
 
             // Format each player's entry
-            $rankList .= "{$crown}{$medal}**#{$position_indicator}** • Rank {$user->pivot->rank} • @{$user->name}";
+            $rankList .= "{$crown}{$medal}**#{$position_indicator}** • Rank {$user->pivot->rank} • <@{$user->discord_id}>";
 
             // Add alias if exists
             if (!empty($user->alias)) {
@@ -372,7 +368,7 @@ class DiscordService
         $fields = [
             [
                 'name' => '👥 Team Information',
-                'value' => "**Owner:** @{$team->owner->name}\n" .
+                'value' => "**Owner:** <@{$team->owner->discord_id}>\n" .
                     "**Total Players:** {$totalPlayers}\n" .
                     "**Rank Range:** {$topRank} - {$bottomRank}",
                 'inline' => true

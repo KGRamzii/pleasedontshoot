@@ -11,244 +11,139 @@ use Illuminate\Support\Facades\DB;
 new class extends Component {
     public $challenges = [];
     public $loading = false;
-    public $winnerIds = [];
+    public array $winnerIds = [];
 
-    public function mount()
+    public function mount(): void
     {
         $this->loadChallenges();
     }
 
-    public function loadChallenges()
+    public function loadChallenges(): void
     {
         try {
-            $userId = Auth::id();
-            $this->challenges = Challenge::where('witness_id', $userId)
+            $this->challenges = Challenge::with(['challenger.teams', 'opponent.teams', 'team'])
+                ->where('witness_id', Auth::id())
                 ->where('status', 'accepted')
-                ->with(['challenger.teams', 'opponent.teams', 'team'])
                 ->latest()
                 ->get();
 
-            $this->winnerIds = [];
-            foreach ($this->challenges as $challenge) {
-                $this->winnerIds[$challenge->id] = null;
-            }
+            $this->winnerIds = $this->challenges->pluck('id', 'id')->map(fn() => null)->toArray();
         } catch (\Exception $e) {
-            Log::error('Error loading witness challenges', [
-                'error' => $e->getMessage(),
-                'user_id' => Auth::id()
-            ]);
+            Log::error('Error loading witness challenges', ['error' => $e->getMessage(), 'user_id' => Auth::id()]);
+            $this->dispatch('challenge-error', ['message' => 'Failed to load challenges.']);
         }
     }
 
-    public function submitOutcome($challengeId)
+    public function submitOutcome(int $challengeId): void
     {
         if ($this->loading) return;
 
         $this->loading = true;
 
-
-
         try {
-            if (empty($this->winnerIds[$challengeId])) {
-                $this->dispatch('challenge-error', [
-                    'message' => 'Please select a winner before submitting.',
-                ]);
+            $winnerId = $this->winnerIds[$challengeId] ?? null;
+
+            if (empty($winnerId)) {
+                $this->dispatch('challenge-error', ['message' => 'Please select a winner before submitting.']);
                 return;
             }
-
-            $winnerId = $this->winnerIds[$challengeId];
 
             $challenge = Challenge::with(['challenger.teams', 'opponent.teams', 'team'])
                 ->where('id', $challengeId)
                 ->where('witness_id', Auth::id())
                 ->where('status', 'accepted')
-                ->first();
-
-            if (!$challenge) {
-                $this->dispatch('challenge-error', [
-                    'message' => 'Challenge not found or already processed.',
-                ]);
-                $this->loadChallenges();
-                return;
-            }
+                ->firstOrFail();
 
             if (!in_array($winnerId, [$challenge->challenger_id, $challenge->opponent_id])) {
-                $this->dispatch('challenge-error', [
-                    'message' => 'Invalid winner selected.',
-                ]);
+                $this->dispatch('challenge-error', ['message' => 'Invalid winner selected.']);
                 return;
             }
 
+            DB::transaction(function () use ($challenge, $winnerId) {
+                $loserId = ($winnerId === $challenge->challenger_id) ? $challenge->opponent_id : $challenge->challenger_id;
 
-            $ranksSwapped = false;
-            $winnerOldRank = null;
-            $winnerNewRank = null;
-            $loserOldRank = null;
-            $loserNewRank = null;
-            $winner = null;
-            $loser = null;
-
-            DB::transaction(function () use ($challenge, $winnerId, &$ranksSwapped, &$winnerOldRank, &$winnerNewRank, &$loserOldRank, &$loserNewRank, &$winner, &$loser) {
                 $winner = User::findOrFail($winnerId);
-
-                // Correctly identify the loser
-                $loserId = ($winnerId == $challenge->challenger_id)
-                    ? $challenge->opponent_id
-                    : $challenge->challenger_id;
-
                 $loser = User::findOrFail($loserId);
 
-                // Debug logging to see what's happening
-                Log::info('Transaction debug', [
-                    'challenge_id' => $challenge->id,
-                    'winner_id' => $winnerId,
-                    'challenger_id' => $challenge->challenger_id,
-                    'opponent_id' => $challenge->opponent_id,
-                    'calculated_loser_id' => $loserId,
-                    'winner_name' => $winner->name,
-                    'loser_name' => $loser->name,
-                ]);
-                DD($challenge);
-
-                $teamId = $challenge->team_id;
-                $winnerPivot = $winner->teams()->where('team_id', $teamId)->first()?->pivot;
-                $loserPivot = $loser->teams()->where('team_id', $teamId)->first()?->pivot;
+                $winnerPivot = $winner->teams()->where('team_id', $challenge->team_id)->first()?->pivot;
+                $loserPivot = $loser->teams()->where('team_id', $challenge->team_id)->first()?->pivot;
 
                 if (!$winnerPivot || !$loserPivot) {
-                    throw new \Exception('Winner or loser not in team');
+                    throw new \Exception('Winner or loser not found in the team.');
                 }
 
+                // Capture old ranks before swapping
                 $winnerOldRank = $winnerPivot->rank;
-                $loserOldRank = $loserPivot->rank;
+                $loserOldRank  = $loserPivot->rank;
 
-                // Check if winner has a HIGHER rank number (lower position) than loser
-                if ($winnerOldRank > $loserOldRank) {
-                    // Swap ranks - winner gets the better rank (lower number)
-                    $winnerNewRank = $loserOldRank;
-                    $loserNewRank = $winnerOldRank;
+                $ranksSwapped = $winnerOldRank > $loserOldRank;
 
-                    $winner->teams()->updateExistingPivot($teamId, ['rank' => $winnerNewRank]);
-                    $loser->teams()->updateExistingPivot($teamId, ['rank' => $loserNewRank]);
-
-                    RankHistory::create([
-                        'user_id' => $winner->id,
-                        'team_id' => $teamId,
-                        'previous_rank' => $winnerOldRank,
-                        'new_rank' => $winnerNewRank,
-                        'challenge_id' => $challenge->id,
-                    ]);
-
-                    RankHistory::create([
-                        'user_id' => $loser->id,
-                        'team_id' => $teamId,
-                        'previous_rank' => $loserOldRank,
-                        'new_rank' => $loserNewRank,
-                        'challenge_id' => $challenge->id,
-                    ]);
-
-                    $ranksSwapped = true;
-                } else {
-                    // No rank change - winner already has better or equal rank
-                    $winnerNewRank = $winnerOldRank;
-                    $loserNewRank = $loserOldRank;
+                if ($ranksSwapped) {
+                    // Swap ranks
+                    $winnerPivot->update(['rank' => $loserOldRank]);
+                    $loserPivot->update(['rank' => $winnerOldRank]);
                 }
+
+                // Record rank history for both players
+                $this->recordRankHistory($winner, $challenge->id, $challenge->team_id, $winnerOldRank, $winnerPivot->rank);
+                $this->recordRankHistory($loser, $challenge->id, $challenge->team_id, $loserOldRank, $loserPivot->rank);
 
                 $challenge->update([
                     'status' => 'completed',
                     'winner_id' => $winnerId,
+                    'loser_id' => $loserId,
                     'completed_at' => now()
                 ]);
 
+                $this->sendToDiscord($challenge, $winner, $loser, $ranksSwapped, $winnerOldRank, $loserOldRank);
             });
 
-            // Reload the challenge with the winner relationship
-            $challenge = $challenge->fresh(['winner', 'challenger', 'opponent', 'witness', 'team']);
-
-            // Send Discord notification after transaction with all necessary data
-            $this->sendToDiscord($challenge, $winner, $loser, $ranksSwapped, [
-                'winner_old_rank' => $winnerOldRank,
-                'winner_new_rank' => $winnerNewRank,
-                'loser_old_rank' => $loserOldRank,
-                'loser_new_rank' => $loserNewRank,
-            ]);
-
-            $this->dispatch('challenge-completed', [
-                'message' => 'Challenge outcome submitted successfully!'
-            ]);
-
+            $this->dispatch('challenge-completed', ['message' => 'Challenge outcome submitted successfully!']);
             $this->loadChallenges();
-
         } catch (\Exception $e) {
-            Log::error('Error submitting challenge outcome', [
-                'error' => $e->getMessage(),
-                'challenge_id' => $challengeId,
-                'winner_id' => $this->winnerIds[$challengeId] ?? null,
-                'user_id' => Auth::id()
-            ]);
-
-            $this->dispatch('challenge-error', [
-                'message' => 'Failed to submit challenge outcome. Please try again.',
-            ]);
+            Log::error('Error submitting challenge outcome', ['error' => $e->getMessage(), 'challenge_id' => $challengeId]);
+            $this->dispatch('challenge-error', ['message' => 'Failed to submit challenge outcome. Please try again.']);
         } finally {
             $this->loading = false;
         }
     }
 
-    protected function sendToDiscord($challenge, $winner, $loser, $ranksSwapped, $rankInfo)
+    protected function recordRankHistory(User $user, int $challengeId, int $teamId, int $previousRank, int $newRank): void
+    {
+        RankHistory::create([
+            'user_id' => $user->id,
+            'team_id' => $teamId,
+            'previous_rank' => $previousRank,
+            'new_rank' => $newRank,
+            'challenge_id' => $challengeId,
+        ]);
+    }
+
+    protected function sendToDiscord(Challenge $challenge, User $winner, User $loser, bool $ranksSwapped, int $winnerOldRank, int $loserOldRank): void
     {
         try {
             $discord = app(\App\Services\DiscordService::class);
 
-            // Reload users with fresh rank data to ensure we have the updated ranks
-            $winnerWithRanks = User::with(['teams' => function($query) use ($challenge) {
-                $query->where('team_id', $challenge->team_id);
-            }])->findOrFail($winner->id);
-
-            $loserWithRanks = User::with(['teams' => function($query) use ($challenge) {
-                $query->where('team_id', $challenge->team_id);
-            }])->findOrFail($loser->id); // Fixed: Use $loser->id instead of $winner->id
-
-            // Set the user objects and rank information on the challenge for Discord
-            $challenge->winner = $winnerWithRanks;
-            $challenge->loser = $loserWithRanks; // Fixed: Set to $loserWithRanks
+            $challenge->winner = $winner;
+            $challenge->loser = $loser;
             $challenge->ranks_swapped = $ranksSwapped;
-
-            // Add all rank information to the challenge object
-            $challenge->winner_old_rank = $rankInfo['winner_old_rank'];
-            $challenge->winner_new_rank = $rankInfo['winner_new_rank'];
-            $challenge->loser_old_rank = $rankInfo['loser_old_rank'];
-            $challenge->loser_new_rank = $rankInfo['loser_new_rank'];
-
-            // Log the data being sent for debugging
-            Log::info('Sending Discord notification', [
-                'challenge_id' => $challenge->id,
-                'winner_name' => $winnerWithRanks->name,
-                'loser_name' => $loserWithRanks->name,
-                'ranks_swapped' => $ranksSwapped,
-                'winner_old_rank' => $rankInfo['winner_old_rank'],
-                'winner_new_rank' => $rankInfo['winner_new_rank'],
-                'loser_old_rank' => $rankInfo['loser_old_rank'],
-                'loser_new_rank' => $rankInfo['loser_new_rank'],
-            ]);
+            $challenge->winner_old_rank = $winnerOldRank;
+            $challenge->winner_new_rank = $winner->teams()->where('team_id', $challenge->team_id)->first()->pivot->rank;
+            $challenge->loser_old_rank = $loserOldRank;
+            $challenge->loser_new_rank = $loser->teams()->where('team_id', $challenge->team_id)->first()->pivot->rank;
 
             $discord->sendChallengeNotification($challenge, 'completed');
 
-            // Send rankings update if ranks were swapped
             if ($ranksSwapped && $challenge->team) {
                 $discord->sendRankingsUpdate($challenge->team);
             }
-
         } catch (\Exception $e) {
-            Log::error('Discord notification failed', [
-                'error' => $e->getMessage(),
-                'challenge_id' => $challenge->id,
-                'winner_id' => $winner->id ?? null,
-                'loser_id' => $loser->id ?? null,
-            ]);
+            Log::error('Discord notification failed', ['error' => $e->getMessage(), 'challenge_id' => $challenge->id]);
         }
     }
 };
 ?>
+
 
 <div x-data="{
     showNotification: false,
