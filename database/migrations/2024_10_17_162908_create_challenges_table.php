@@ -18,6 +18,9 @@ return new class extends Migration {
             $table->string('banned_agent')->nullable(); // Specific agent or type
             $table->foreignId('witness_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('team_id')->constrained('teams')->nullable()->after('id');
+            $table->foreignId('winner_id')->nullable()->constrained('users')->onDelete('cascade');
+            $table->foreignId('loser_id')->nullable()->constrained('users')->onDelete('cascade');
+            $table->timestamp('completed_at')->nullable();
             $table->timestamps();
         });
     }

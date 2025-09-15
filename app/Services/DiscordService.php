@@ -69,7 +69,7 @@ class DiscordService
                 $payload['embed_title'] = $embed['title'] ?? null;
                 $payload['embed_description'] = $embed['description'] ?? null;
                 $payload['embed_color'] = $embed['color'] ?? 0x00ff00;
-                
+
                 // Add thumbnail URL if present
                 if (isset($embed['thumbnail']['url'])) {
                     $payload['embed_thumbnail'] = $embed['thumbnail']['url'];
@@ -83,7 +83,7 @@ class DiscordService
                 'embed_title' => $embed['title'] ?? null,
                 'has_thumbnail' => isset($embed['thumbnail']['url'])
             ]);
-            
+
             $response = Http::timeout(30)->post("{$this->base}/send-channel-message", $payload);
 
             if (!$response->successful()) {
@@ -140,12 +140,12 @@ class DiscordService
                 $payload['embed_title'] = $embed['title'] ?? null;
                 $payload['embed_description'] = $embed['description'] ?? null;
                 $payload['embed_color'] = $embed['color'] ?? null;
-                
+
                 // Handle fields if present
                 if (!empty($embed['fields'])) {
                     $payload['embed_fields'] = $embed['fields']; // No need to json_encode, Http client will handle it
                 }
-                
+
                 // Add timestamp if present
                 if (!empty($embed['timestamp'])) {
                     $payload['embed_timestamp'] = $embed['timestamp'];
@@ -205,35 +205,103 @@ class DiscordService
         $fields = [];
 
         if ($type === 'completed' && isset($challenge->winner) && isset($challenge->loser)) {
+            // Log the challenge data for debugging
+            Log::info('Discord notification data', [
+                'challenge_id' => $challenge->id,
+                'winner_name' => $challenge->winner->name ?? 'Unknown',
+                'loser_name' => $challenge->loser->name ?? 'Unknown',
+                'winner_old_rank' => $challenge->winner_old_rank ?? 'Missing',
+                'winner_new_rank' => $challenge->winner_new_rank ?? 'Missing',
+                'loser_old_rank' => $challenge->loser_old_rank ?? 'Missing',
+                'loser_new_rank' => $challenge->loser_new_rank ?? 'Missing',
+                'ranks_swapped' => $challenge->ranks_swapped ?? false,
+            ]);
+
+            // Use the NEW ranks for current display (after the challenge outcome)
+            $winnerCurrentRank = $challenge->winner_new_rank ?? 'Unknown';
+            $loserCurrentRank = $challenge->loser_new_rank ?? 'Unknown';
+
             $fields = [
-                ['name' => '🏅 Winner', 'value' => "**<@{$challenge->winner->discord_id}>** (Rank: {$challenge->winner->rank})", 'inline' => true],
-                ['name' => '💔 Loser', 'value' => "**<@{$challenge->loser->discord_id}>** (Rank: {$challenge->loser->rank})", 'inline' => true],
-                ['name' => '👀 Witness', 'value' => "<@{$witness->discord_id}>", 'inline' => true],
-                ['name' => '📊 Rank Status', 'value' => $challenge->winner->rank > $challenge->loser->rank ? 'The winner was already ranked higher.' : 'Ranks have been swapped!', 'inline' => false],
+                [
+                    'name' => '🏅 Winner',
+                    'value' => "**<@{$challenge->winner->discord_id}>** (Rank: {$winnerCurrentRank})",
+                    'inline' => true
+                ],
+                [
+                    'name' => '💔 Loser',
+                    'value' => "**<@{$challenge->loser->discord_id}>** (Rank: {$loserCurrentRank})",
+                    'inline' => true
+                ],
+                [
+                    'name' => '👀 Witness',
+                    'value' => "<@{$witness->discord_id}>",
+                    'inline' => true
+                ],
             ];
+
+            // Add rank change information
+            if (isset($challenge->ranks_swapped) && $challenge->ranks_swapped === true) {
+                $rankChangeText = "⚡ **Ranks Swapped!** ";
+                $rankChangeText .= "**{$challenge->winner->name}** moved from rank {$challenge->winner_old_rank} to {$challenge->winner_new_rank}, ";
+                $rankChangeText .= "**{$challenge->loser->name}** moved from rank {$challenge->loser_old_rank} to {$challenge->loser_new_rank}.";
+
+                $fields[] = [
+                    'name' => '📊 Rank Status',
+                    'value' => $rankChangeText,
+                    'inline' => false
+                ];
+            } else {
+                $fields[] = [
+                    'name' => '📊 Rank Status',
+                    'value' => 'No rank changes - winner was already ranked higher.',
+                    'inline' => false
+                ];
+            }
         } else {
+            // Get current ranks for challenger and opponent
+            $challengerRank = 'Unknown';
+            $opponentRank = 'Unknown';
+
+            if ($challenger && $team) {
+                $challengerTeamUser = $challenger->teams()->where('team_id', $team->id)->first();
+                if ($challengerTeamUser) {
+                    $challengerRank = $challengerTeamUser->pivot->rank;
+                }
+            }
+
+            if ($opponent && $team) {
+                $opponentTeamUser = $opponent->teams()->where('team_id', $team->id)->first();
+                if ($opponentTeamUser) {
+                    $opponentRank = $opponentTeamUser->pivot->rank;
+                }
+            }
+
             $fields = [
-                ['name' => '👊 Challenger', 'value' => "<@{$challenger->discord_id}>", 'inline' => true],
-                ['name' => '🎯 Opponent', 'value' => "<@{$opponent->discord_id}>", 'inline' => true],
-                ['name' => '👀 Witness', 'value' => "<@{$witness->discord_id}>", 'inline' => true],
+                [
+                    'name' => '👊 Challenger',
+                    'value' => "@{$challenger->name} (Rank: {$challengerRank})",
+                    'inline' => true
+                ],
+                [
+                    'name' => '🎯 Opponent',
+                    'value' => "@{$opponent->name} (Rank: {$opponentRank})",
+                    'inline' => true
+                ],
+                [
+                    'name' => '👀 Witness',
+                    'value' => "@{$witness->name}",
+                    'inline' => true
+                ],
             ];
         }
 
         // Add banned agent if present
-        if ($type === 'created' || $type === 'completed') {
-            if ($bannedAgentData) {
-                $fields[] = [
-                    'name' => '🚫 Banned Agent',
-                    'value' => "**{$bannedAgentData['name']}**",
-                    'inline' => true,
-                ];
-            } else if ($type === 'created') {
-                $fields[] = [
-                    'name' => '🚫 Banned Agent',
-                    'value' => 'None',
-                    'inline' => true,
-                ];
-            }
+        if (($type === 'created' || $type === 'completed') && $bannedAgentData) {
+            $fields[] = [
+                'name' => '🚫 Banned Agent',
+                'value' => "**{$bannedAgentData['name']}**",
+                'inline' => true,
+            ];
         }
 
         // Build description including fields
@@ -243,6 +311,8 @@ class DiscordService
 
         if ($type === 'created') {
             $description .= "\n\nChallenge ID: " . $challenge->id . ' • Created at ' . now()->format('M j, Y g:i A');
+        } elseif ($type === 'completed') {
+            $description .= "\n\nChallenge ID: " . $challenge->id . ' • Completed at ' . now()->format('M j, Y g:i A');
         }
 
         $embed = [
@@ -272,7 +342,7 @@ class DiscordService
     {
         // Use the cached rankings
         $users = $team->getRankings();
-        
+
         // Generate the ranking list with detailed information
         $rankList = '';
         $totalPlayers = $users->count();
@@ -281,20 +351,20 @@ class DiscordService
 
         foreach ($users as $index => $user) {
             $position = $index + 1;
-            
+
             // Enhanced position indicators
             $crown = $position === 1 ? '👑 ' : '';
             $medal = $position === 2 ? '🥈 ' : ($position === 3 ? '🥉 ' : '');
             $position_indicator = str_pad($position, 2, '0', STR_PAD_LEFT); // Makes "1" into "01" for better readability
-            
+
             // Format each player's entry
-            $rankList .= "{$crown}{$medal}**#{$position_indicator}** • Rank {$user->pivot->rank} • <@{$user->discord_id}>";
-            
+            $rankList .= "{$crown}{$medal}**#{$position_indicator}** • Rank {$user->pivot->rank} • @{$user->name}";
+
             // Add alias if exists
             if (!empty($user->alias)) {
                 $rankList .= " (" . $user->alias . ")";
             }
-            
+
             $rankList .= "\n";
         }
 
@@ -302,16 +372,16 @@ class DiscordService
         $fields = [
             [
                 'name' => '👥 Team Information',
-                'value' => "**Owner:** <@{$team->owner->discord_id}>\n" .
-                          "**Total Players:** {$totalPlayers}\n" .
-                          "**Rank Range:** {$topRank} - {$bottomRank}",
+                'value' => "**Owner:** @{$team->owner->name}\n" .
+                    "**Total Players:** {$totalPlayers}\n" .
+                    "**Rank Range:** {$topRank} - {$bottomRank}",
                 'inline' => true
             ],
             [
                 'name' => '📈 Statistics',
                 'value' => "**Top 3 Players:** " . ($totalPlayers >= 3 ? "✅" : "Need " . (3 - $totalPlayers) . " more") . "\n" .
-                          "**Active Challenges:** " . $team->challenges()->where('status', 'pending')->count() . "\n" .
-                          "**Last Updated:** " . now()->format('M j, Y g:i A'),
+                    "**Active Challenges:** " . $team->challenges()->where('status', 'pending')->count() . "\n" .
+                    "**Last Updated:** " . now()->format('M j, Y g:i A'),
                 'inline' => true
             ]
         ];
@@ -342,7 +412,7 @@ class DiscordService
     public function testEndpoints()
     {
         Log::info('Starting Discord endpoint tests...');
-        
+
         $dmResponse = null;
         $channelResponse = null;
 
