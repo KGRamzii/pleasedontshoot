@@ -4,6 +4,8 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\RankHistory;
+use Carbon\Carbon;
 
 class DiscordService
 {
@@ -25,12 +27,13 @@ class DiscordService
     }
 
     /**
-     * Create a consistently styled embed for Discord messages
+     * Create a consistently styled embed array.
      */
-    protected function createEmbed($title, $fields = [], $color = 'info', $thumbnail = null)
+    protected function createEmbed(string $title, string $description = '', array $fields = [], $color = 'info', ?string $thumbnail = null, ?string $timestamp = null): array
     {
         $embed = [
             'title' => $title,
+            'description' => $description,
             'color' => is_string($color) ? ($this->colors[$color] ?? $this->colors['info']) : $color,
             'fields' => array_map(function ($field) {
                 return [
@@ -39,7 +42,7 @@ class DiscordService
                     'inline' => $field['inline'] ?? true,
                 ];
             }, $fields),
-            'timestamp' => now()->toIso8601String(),
+            'timestamp' => $timestamp ?? now()->toIso8601String(),
         ];
 
         if ($thumbnail) {
@@ -50,7 +53,7 @@ class DiscordService
     }
 
     /**
-     * Send a message to a Discord channel
+     * Send a message to a channel via your relay API.
      */
     public function sendToChannel($channelId, $message = '', $embed = null)
     {
@@ -59,20 +62,27 @@ class DiscordService
                 'channel_id' => $channelId
             ];
 
-            // Only add message if it's not empty
             if (!empty($message)) {
                 $payload['message'] = $message;
             }
 
             if ($embed) {
-                // Match the Discord bot's expected format
+                // Map embed fields expected by your relay API
                 $payload['embed_title'] = $embed['title'] ?? null;
                 $payload['embed_description'] = $embed['description'] ?? null;
                 $payload['embed_color'] = $embed['color'] ?? 0x00ff00;
 
-                // Add thumbnail URL if present
                 if (isset($embed['thumbnail']['url'])) {
                     $payload['embed_thumbnail'] = $embed['thumbnail']['url'];
+                }
+
+                // include embed_fields if present (relay will assemble)
+                if (!empty($embed['fields'])) {
+                    $payload['embed_fields'] = $embed['fields'];
+                }
+
+                if (!empty($embed['timestamp'])) {
+                    $payload['embed_timestamp'] = $embed['timestamp'];
                 }
             }
 
@@ -114,12 +124,11 @@ class DiscordService
     }
 
     /**
-     * Send a direct message to a user by Discord ID
+     * Send a direct message to a user by Discord ID via your relay API.
      */
     public function sendDirectMessage($discordUserId, $message = '', $embed = null)
     {
         try {
-            // Ensure we have either a message or an embed
             if (empty($message) && empty($embed)) {
                 throw new \InvalidArgumentException('Either message or embed must be provided');
             }
@@ -132,27 +141,25 @@ class DiscordService
 
             $payload = [
                 'user_id' => $discordUserId,
-                'message' => $message, // Fallback message
+                'message' => $message,
             ];
 
-            // Add embed if present
             if ($embed) {
                 $payload['embed_title'] = $embed['title'] ?? null;
                 $payload['embed_description'] = $embed['description'] ?? null;
                 $payload['embed_color'] = $embed['color'] ?? null;
-
-                // Handle fields if present
                 if (!empty($embed['fields'])) {
-                    $payload['embed_fields'] = $embed['fields']; // No need to json_encode, Http client will handle it
+                    $payload['embed_fields'] = $embed['fields'];
                 }
-
-                // Add timestamp if present
                 if (!empty($embed['timestamp'])) {
                     $payload['embed_timestamp'] = $embed['timestamp'];
                 }
+                if (isset($embed['thumbnail']['url'])) {
+                    $payload['embed_thumbnail'] = $embed['thumbnail']['url'];
+                }
             }
 
-            $response = Http::post("{$this->base}/send-dm", $payload);
+            $response = Http::timeout(30)->post("{$this->base}/send-dm", $payload);
 
             if (!$response->successful()) {
                 Log::error('Discord DM failed', [
@@ -174,14 +181,14 @@ class DiscordService
     }
 
     /**
-     * Send a challenge notification
+     * Send a challenge notification (created/accepted/declined/completed).
      */
     public function sendChallengeNotification($challenge, $type = 'created')
     {
-        $challenger = $challenge->challenger;
-        $opponent = $challenge->opponent;
-        $witness = $challenge->witness;
-        $team = $challenge->team;
+        $challenger = $challenge->challenger ?? null;
+        $opponent = $challenge->opponent ?? null;
+        $witness = $challenge->witness ?? null;
+        $team = $challenge->team ?? null;
         $bannedAgentData = $challenge->banned_agent ? json_decode($challenge->banned_agent, true) : null;
 
         $title = match ($type) {
@@ -195,17 +202,16 @@ class DiscordService
         $description = $team ? "Challenge in **{$team->name}**" : '';
 
         $color = match ($type) {
-            'created' => 0x7289da,  // Discord Blurple
-            'accepted' => 0x4CAF50, // Green
-            'declined' => 0xf04747, // Red
-            'completed' => 0x43b581, // Discord Online Green
-            default => 0x7289da     // Discord Blurple
+            'created' => 0x7289da,
+            'accepted' => 0x4CAF50,
+            'declined' => 0xf04747,
+            'completed' => 0x43b581,
+            default => 0x7289da
         };
 
         $fields = [];
 
         if ($type === 'completed' && isset($challenge->winner) && isset($challenge->loser)) {
-            // Use the rank information passed from the component
             $winnerCurrentRank = $challenge->winner_new_rank ?? 'Unknown';
             $loserCurrentRank = $challenge->loser_new_rank ?? 'Unknown';
 
@@ -227,7 +233,6 @@ class DiscordService
                 ],
             ];
 
-            // Add rank change information
             if (isset($challenge->ranks_swapped) && $challenge->ranks_swapped) {
                 $rankChangeText = "📈 **Ranks Swapped!**\n";
                 $rankChangeText .= "🏅 **{$challenge->winner->name}:** {$challenge->winner_old_rank} → {$challenge->winner_new_rank}\n";
@@ -246,7 +251,6 @@ class DiscordService
                 ];
             }
         } else {
-            // Get current ranks for challenger and opponent
             $challengerRank = 'Unknown';
             $opponentRank = 'Unknown';
 
@@ -283,7 +287,6 @@ class DiscordService
             ];
         }
 
-        // Add banned agent if present
         if ($type === 'created' || $type === 'completed') {
             if ($bannedAgentData) {
                 $fields[] = [
@@ -291,7 +294,7 @@ class DiscordService
                     'value' => "**{$bannedAgentData['name']}**",
                     'inline' => true,
                 ];
-            } else if ($type === 'created') {
+            } elseif ($type === 'created') {
                 $fields[] = [
                     'name' => '🚫 Banned Agent',
                     'value' => 'None',
@@ -300,7 +303,6 @@ class DiscordService
             }
         }
 
-        // Build description including fields
         foreach ($fields as $field) {
             $description .= "\n\n**{$field['name']}**\n{$field['value']}";
         }
@@ -317,11 +319,8 @@ class DiscordService
             'color' => $color
         ];
 
-        // Add agent thumbnail if banned agent exists
-        if ($bannedAgentData && isset($bannedAgentData['icon'])) {
-            $embed['thumbnail'] = [
-                'url' => $bannedAgentData['icon']
-            ];
+        if (!empty($bannedAgentData['icon'])) {
+            $embed['thumbnail'] = ['url' => $bannedAgentData['icon']];
         }
 
         return $this->sendToChannel(
@@ -332,125 +331,166 @@ class DiscordService
     }
 
     /**
-     * Send updated rankings
+     * Send updated rankings + recent history + pending challenges
      */
     public function sendRankingsUpdate($team)
     {
-        // Use the cached rankings
-        $users = $team->getRankings();
+        if (!$team) {
+            Log::warning('sendRankingsUpdate called with null $team');
+            return false;
+        }
 
-        // Generate the ranking list with detailed information
+        // Get current rankings (assumes getRankings exists and returns collection ordered by rank)
+        $users = $team->getRankings();
         $rankList = '';
-        $totalPlayers = $users->count();
-        $topRank = $users->min('pivot.rank');
-        $bottomRank = $users->max('pivot.rank');
 
         foreach ($users as $index => $user) {
             $position = $index + 1;
-
-            // Enhanced position indicators
             $crown = $position === 1 ? '👑 ' : '';
             $medal = $position === 2 ? '🥈 ' : ($position === 3 ? '🥉 ' : '');
-            $position_indicator = str_pad($position, 2, '0', STR_PAD_LEFT); // Makes "1" into "01" for better readability
+            $position_indicator = str_pad($position, 2, '0', STR_PAD_LEFT);
 
-            // Format each player's entry
-            $rankList .= "{$crown}{$medal}**#{$position_indicator}** • Rank {$user->pivot->rank} • <@{$user->discord_id}>";
+            $alias = !empty($user->alias) ? " ({$user->alias})" : '';
+            $rankList .= "{$crown}{$medal}**#{$position_indicator}** • Rank {$user->pivot->rank} • <@{$user->discord_id}>{$alias}\n";
 
-            // Add alias if exists
-            if (!empty($user->alias)) {
-                $rankList .= " (" . $user->alias . ")";
+            if (strlen($rankList) > 3000) {
+                $rankList .= "... (truncated)\n";
+                break;
             }
-
-            $rankList .= "\n";
         }
 
-        // Create fields for additional information
+        $totalPlayers = $users->count();
+        $topRank = $users->isNotEmpty() ? $users->min('pivot.rank') : 'N/A';
+        $bottomRank = $users->isNotEmpty() ? $users->max('pivot.rank') : 'N/A';
+
         $fields = [
             [
                 'name' => '👥 Team Information',
                 'value' => "**Owner:** <@{$team->owner->discord_id}>\n" .
-                    "**Total Players:** {$totalPlayers}\n" .
-                    "**Rank Range:** {$topRank} - {$bottomRank}",
+                           "**Total Players:** {$totalPlayers}\n" .
+                           "**Rank Range:** {$topRank} - {$bottomRank}",
                 'inline' => true
             ],
             [
-                'name' => '📈 Statistics',
-                'value' => "**Top 3 Players:** " . ($totalPlayers >= 3 ? "✅" : "Need " . (3 - $totalPlayers) . " more") . "\n" .
-                    "**Active Challenges:** " . $team->challenges()->where('status', 'pending')->count() . "\n" .
-                    "**Last Updated:** " . now()->format('M j, Y g:i A'),
+                'name' => '📈 Snapshot',
+                'value' => "**Top 3:** " . ($totalPlayers >= 3 ? "✅" : "Need " . max(0, 3 - $totalPlayers) . " more") . "\n" .
+                           "**Active Challenges (pending):** " . $team->challenges()->where('status', 'pending')->count() . "\n" .
+                           "**Last Updated:** " . now()->format('M j, Y g:i A'),
                 'inline' => true
             ]
         ];
 
-        $embed = [
-            'title' => '📊 Rankings Updated in ' . $team->name,
-            'description' => "**Current Rankings**\n\n" . $rankList,
+        $embedMain = [
+            'title' => '📊 Rankings in ' . $team->name,
+            'description' => "**Current Rankings**\n\n" . ($rankList ?: 'No players'),
             'fields' => $fields,
             'color' => $this->colors['info'],
             'timestamp' => now()->toIso8601String()
         ];
 
-        // Add team icon if available
-        if ($team->icon_url) {
-            $embed['thumbnail'] = ['url' => $team->icon_url];
+        if (!empty($team->icon_url)) {
+            $embedMain['thumbnail'] = ['url' => $team->icon_url];
         }
+
+        // Send primary embed
+        $this->sendToChannel(
+            $team->discord_team_id ?? env('DISCORD_ANNOUNCE_CHANNEL_ID'),
+            '',
+            $embedMain
+        );
+
+        // --- Second embed: last 3 rank history entries + pending challenges ---
+        $recentHistory = RankHistory::with(['user', 'challenge'])
+            ->where('team_id', $team->id)
+            ->orderBy('created_at', 'desc')
+            ->limit(3)
+            ->get();
+
+        $historyText = '';
+        if ($recentHistory->isEmpty()) {
+            $historyText = 'No recent rank changes.';
+        } else {
+            foreach ($recentHistory as $rh) {
+                $userName = $rh->user->name ?? "User #{$rh->user_id}";
+                $from = $rh->previous_rank;
+                $to = $rh->new_rank;
+                $movement = $from - $to;
+                $movementText = $movement > 0 ? "Moved up {$movement}" : ($movement < 0 ? "Moved down " . abs($movement) : "No change");
+                $when = $rh->created_at->diffForHumans();
+                $challengePart = $rh->challenge ? (" (challenge #" . $rh->challenge->id . ")") : '';
+                $historyText .= "**{$userName}**: {$from} ➔ {$to} — {$movementText}{$challengePart} • {$when}\n";
+            }
+        }
+
+        $pending = $team->challenges()->where('status', 'pending')->with(['challenger', 'opponent'])->orderBy('created_at', 'asc')->limit(5)->get();
+
+        $pendingText = '';
+        if ($pending->isEmpty()) {
+            $pendingText = 'No pending challenges.';
+        } else {
+            foreach ($pending as $p) {
+                $challenger = $p->challenger ? ($p->challenger->name . " <@{$p->challenger->discord_id}>") : "User #{$p->challenger_id}";
+                $opponent = $p->opponent ? ($p->opponent->name . " <@{$p->opponent->discord_id}>") : "User #{$p->opponent_id}";
+                $created = $p->created_at->diffForHumans();
+                $pendingText .= "**#{$p->id}** — {$challenger} vs {$opponent} • {$created}\n";
+            }
+        }
+
+        $embedSecond = [
+            'title' => "🧾 Recent Activity & Pending Challenges — {$team->name}",
+            'description' => '',
+            'fields' => [
+                [
+                    'name' => '🔁 Recent Rank Changes (last 3)',
+                    'value' => $historyText,
+                    'inline' => false
+                ],
+                [
+                    'name' => '⏳ Pending Challenges (up to 5)',
+                    'value' => $pendingText,
+                    'inline' => false
+                ],
+            ],
+            'color' => $this->colors['info'],
+            'timestamp' => now()->toIso8601String()
+        ];
 
         return $this->sendToChannel(
             $team->discord_team_id ?? env('DISCORD_ANNOUNCE_CHANNEL_ID'),
             '',
-            $embed
+            $embedSecond
         );
     }
 
     /**
-     * Test both Discord endpoints
+     * Optional - small test function to exercise endpoints.
      */
     public function testEndpoints()
     {
         Log::info('Starting Discord endpoint tests...');
+        $results = [
+            'dm' => null,
+            'channel' => null,
+        ];
 
-        $dmResponse = null;
-        $channelResponse = null;
-
-        // Test DM endpoint
         try {
-            $dmResponse = Http::post("{$this->base}/send-dm", [
+            $results['dm'] = Http::post("{$this->base}/send-dm", [
                 'user_id' => '768838379865374730',
                 'message' => '🧪 Test message from Discord bot'
-            ]);
-
-            Log::info('DM endpoint test result', [
-                'status' => $dmResponse->status(),
-                'body' => $dmResponse->body(),
-                'success' => $dmResponse->successful()
-            ]);
+            ])->json();
         } catch (\Exception $e) {
-            Log::error('DM endpoint test failed', [
-                'error' => $e->getMessage()
-            ]);
+            Log::error('DM endpoint test failed', ['error' => $e->getMessage()]);
         }
 
-        // Test channel message endpoint
         try {
-            $channelResponse = Http::post("{$this->base}/send-channel-message", [
+            $results['channel'] = Http::post("{$this->base}/send-channel-message", [
                 'channel_id' => env('DISCORD_ANNOUNCE_CHANNEL_ID'),
                 'message' => '🧪 Test message from Discord bot'
-            ]);
-
-            Log::info('Channel endpoint test result', [
-                'status' => $channelResponse->status(),
-                'body' => $channelResponse->body(),
-                'success' => $channelResponse->successful()
-            ]);
+            ])->json();
         } catch (\Exception $e) {
-            Log::error('Channel endpoint test failed', [
-                'error' => $e->getMessage()
-            ]);
+            Log::error('Channel endpoint test failed', ['error' => $e->getMessage()]);
         }
 
-        return [
-            'dm_status' => $dmResponse ? $dmResponse->status() : 'failed',
-            'channel_status' => $channelResponse ? $channelResponse->status() : 'failed'
-        ];
+        return $results;
     }
 }

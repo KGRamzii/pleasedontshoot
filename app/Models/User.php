@@ -57,6 +57,13 @@ class User extends Authenticatable
     {
         return $this->hasMany(RankHistory::class);
     }
+    /**
+ * Get the rank history rows for the user.
+ */
+    public function rankHistories()
+    {
+        return $this->hasMany(RankHistory::class, 'user_id');
+    }
 
     // 👥 Teams
     public function currentTeam()
@@ -86,4 +93,5 @@ class User extends Authenticatable
         // Uses collections but makes sure both relations are loaded
         return $this->ownedTeams()->get()->merge($this->teams()->get());
     }
+    
 }
