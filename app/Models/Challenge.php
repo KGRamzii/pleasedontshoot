@@ -13,6 +13,9 @@ class Challenge extends Model
         'banned_agent',
         'witness_id',
         'team_id',
+        'winner_id',      // Added this
+        'loser_id',       // Added this
+        'completed_at',   // Added this
     ];
 
     public function challenger()

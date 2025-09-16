@@ -29,6 +29,7 @@ return new class extends Migration {
                 ->constrained('users')
                 ->nullOnDelete()
                 ->after('winner_id');
+            $table->timestamp('completed_at')->nullable()->after('loser_id');
 
             $table->timestamps();
         });

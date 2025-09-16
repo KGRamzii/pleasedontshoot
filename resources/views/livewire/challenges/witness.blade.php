@@ -60,77 +60,167 @@ new class extends Component {
             }
 
             DB::transaction(function () use ($challenge, $winnerId) {
-                $loserId = ($winnerId === $challenge->challenger_id) ? $challenge->opponent_id : $challenge->challenger_id;
-
-                $winner = User::findOrFail($winnerId);
-                $loser = User::findOrFail($loserId);
-
-                $winnerPivot = $winner->teams()->where('team_id', $challenge->team_id)->first()?->pivot;
-                $loserPivot = $loser->teams()->where('team_id', $challenge->team_id)->first()?->pivot;
-
-                if (!$winnerPivot || !$loserPivot) {
-                    throw new \Exception('Winner or loser not found in the team.');
+                // Explicitly convert IDs to integers for comparison
+                $challengerId = (int) $challenge->challenger_id;
+                $opponentId = (int) $challenge->opponent_id;
+                $winnerIdInt = (int) $winnerId;
+                
+                // Determine loser based on winner selection
+                if ($winnerIdInt === $challengerId) {
+                    $loserId = $opponentId;
+                } elseif ($winnerIdInt === $opponentId) {
+                    $loserId = $challengerId;
+                } else {
+                    throw new \Exception('Invalid winner ID - does not match challenger or opponent');
                 }
 
-                // Capture old ranks before swapping
-                $winnerOldRank = $winnerPivot->rank;
-                $loserOldRank  = $loserPivot->rank;
+                $winner = User::findOrFail($winnerIdInt);
+                $loser = User::findOrFail($loserId);
+                
+                // Log for debugging
+                Log::info('Challenge outcome processing', [
+                    'challenge_id' => $challenge->id,
+                    'challenger_id' => $challengerId,
+                    'opponent_id' => $opponentId,
+                    'winner_id' => $winnerIdInt,
+                    'loser_id' => $loserId,
+                    'winner_name' => $winner->name,
+                    'loser_name' => $loser->name,
+                ]);
 
+                // Start with challenge->team_id, but robustly resolve from pivots if null
+                $resolvedTeamId = $challenge->team_id;
+
+                // Try to get pivots using challenge->team_id if available
+                $winnerPivot = null;
+                $loserPivot = null;
+
+                if ($resolvedTeamId) {
+                    $winnerPivot = $winner->teams()->where('team_id', $resolvedTeamId)->first()?->pivot;
+                    $loserPivot  = $loser->teams()->where('team_id', $resolvedTeamId)->first()?->pivot;
+                }
+
+                // If any pivot not found or team_id is null, attempt to find a common team_id
+                if (!$winnerPivot || !$loserPivot) {
+                    $winnerTeamIds = $winner->teams()->pluck('team_id')->toArray();
+                    $loserTeamIds  = $loser->teams()->pluck('team_id')->toArray();
+
+                    $common = array_values(array_intersect($winnerTeamIds, $loserTeamIds));
+                    $commonTeamId = $common[0] ?? null;
+
+                    if ($commonTeamId) {
+                        $resolvedTeamId = $commonTeamId;
+                        $winnerPivot = $winner->teams()->where('team_id', $resolvedTeamId)->first()?->pivot;
+                        $loserPivot  = $loser->teams()->where('team_id', $resolvedTeamId)->first()?->pivot;
+                    }
+                }
+
+                // Last-resort fallback: use the first pivot available for each user (best-effort)
+                if ((!$winnerPivot || !$loserPivot) && empty($resolvedTeamId)) {
+                    $winnerFirst = $winner->teams()->first();
+                    $loserFirst  = $loser->teams()->first();
+
+                    $winnerPivot = $winnerPivot ?? $winnerFirst?->pivot;
+                    $loserPivot  = $loserPivot  ?? $loserFirst?->pivot;
+
+                    $resolvedTeamId = $resolvedTeamId ?? $winnerFirst?->pivot->team_id ?? $loserFirst?->pivot->team_id ?? null;
+                }
+
+                // If we still don't have pivots or a team id, abort the transaction with a clear error
+                if (!$winnerPivot || !$loserPivot || empty($resolvedTeamId)) {
+                    Log::error('Unable to resolve team membership for challenge outcome', [
+                        'challenge_id' => $challenge->id,
+                        'challenge_team_id' => $challenge->team_id,
+                        'resolved_team_id' => $resolvedTeamId,
+                        'winner_id' => $winner->id,
+                        'loser_id' => $loser->id,
+                    ]);
+                    throw new \Exception('Unable to resolve team or membership pivots for winner/loser.');
+                }
+
+                // Capture old ranks BEFORE making changes
+                $winnerOldRank = (int) $winnerPivot->rank;
+                $loserOldRank  = (int) $loserPivot->rank;
+
+                // Decide if swap is needed (winner had worse/higher number rank)
                 $ranksSwapped = $winnerOldRank > $loserOldRank;
 
                 if ($ranksSwapped) {
-                    // Swap ranks
+                    // Swap ranks using pivot model updates
                     $winnerPivot->update(['rank' => $loserOldRank]);
                     $loserPivot->update(['rank' => $winnerOldRank]);
                 }
 
-                // Record rank history for both players
-                $this->recordRankHistory($winner, $challenge->id, $challenge->team_id, $winnerOldRank, $winnerPivot->rank);
-                $this->recordRankHistory($loser, $challenge->id, $challenge->team_id, $loserOldRank, $loserPivot->rank);
+                // Re-fetch fresh pivot ranks to ensure accurate new values
+                $winnerNewRank = (int) $winner->teams()->where('team_id', $resolvedTeamId)->first()->pivot->rank;
+                $loserNewRank  = (int) $loser->teams()->where('team_id', $resolvedTeamId)->first()->pivot->rank;
 
+                // Record rank history - resolvedTeamId is guaranteed non-null here
+                // The error check above ensures we have a valid team_id
+                RankHistory::create([
+                    'user_id' => $winner->id,
+                    'team_id' => $resolvedTeamId,
+                    'previous_rank' => $winnerOldRank,
+                    'new_rank' => $winnerNewRank,
+                    'challenge_id' => $challenge->id,
+                ]);
+
+                RankHistory::create([
+                    'user_id' => $loser->id,
+                    'team_id' => $resolvedTeamId,
+                    'previous_rank' => $loserOldRank,
+                    'new_rank' => $loserNewRank,
+                    'challenge_id' => $challenge->id,
+                ]);
+
+                // Update challenge with correct IDs
                 $challenge->update([
                     'status' => 'completed',
-                    'winner_id' => $winnerId,
+                    'winner_id' => $winnerIdInt,
                     'loser_id' => $loserId,
                     'completed_at' => now()
                 ]);
 
-                $this->sendToDiscord($challenge, $winner, $loser, $ranksSwapped, $winnerOldRank, $loserOldRank);
+                // Send Discord notification with old ranks as well
+                $this->sendToDiscord($challenge, $winner, $loser, $ranksSwapped, $winnerOldRank, $loserOldRank, $resolvedTeamId);
             });
 
             $this->dispatch('challenge-completed', ['message' => 'Challenge outcome submitted successfully!']);
             $this->loadChallenges();
         } catch (\Exception $e) {
-            Log::error('Error submitting challenge outcome', ['error' => $e->getMessage(), 'challenge_id' => $challengeId]);
+            Log::error('Error submitting challenge outcome', [
+                'error' => $e->getMessage(),
+                'challenge_id' => $challengeId,
+                'auth_id' => Auth::id()
+            ]);
             $this->dispatch('challenge-error', ['message' => 'Failed to submit challenge outcome. Please try again.']);
         } finally {
             $this->loading = false;
         }
     }
 
-    protected function recordRankHistory(User $user, int $challengeId, int $teamId, int $previousRank, int $newRank): void
-    {
-        RankHistory::create([
-            'user_id' => $user->id,
-            'team_id' => $teamId,
-            'previous_rank' => $previousRank,
-            'new_rank' => $newRank,
-            'challenge_id' => $challengeId,
-        ]);
-    }
-
-    protected function sendToDiscord(Challenge $challenge, User $winner, User $loser, bool $ranksSwapped, int $winnerOldRank, int $loserOldRank): void
+    protected function sendToDiscord(Challenge $challenge, User $winner, User $loser, bool $ranksSwapped, int $winnerOldRank, int $loserOldRank, int $teamId): void
     {
         try {
             $discord = app(\App\Services\DiscordService::class);
 
-            $challenge->winner = $winner;
-            $challenge->loser = $loser;
+            // Use the resolved team_id that was validated in submitOutcome
+            $winnerNewRank = $winner->teams()->where('team_id', $teamId)->first()?->pivot->rank ?? $winnerOldRank;
+            $loserNewRank  = $loser->teams()->where('team_id', $teamId)->first()?->pivot->rank ?? $loserOldRank;
+
+            // Refresh the challenge model to get the updated winner_id and loser_id
+            $challenge->refresh();
+            
+            // Set the relationships explicitly
+            $challenge->setRelation('winner', $winner);
+            $challenge->setRelation('loser', $loser);
+            
+            // Add extra properties for the Discord service
             $challenge->ranks_swapped = $ranksSwapped;
             $challenge->winner_old_rank = $winnerOldRank;
-            $challenge->winner_new_rank = $winner->teams()->where('team_id', $challenge->team_id)->first()->pivot->rank;
+            $challenge->winner_new_rank = $winnerNewRank;
             $challenge->loser_old_rank = $loserOldRank;
-            $challenge->loser_new_rank = $loser->teams()->where('team_id', $challenge->team_id)->first()->pivot->rank;
+            $challenge->loser_new_rank = $loserNewRank;
 
             $discord->sendChallengeNotification($challenge, 'completed');
 
@@ -138,12 +228,11 @@ new class extends Component {
                 $discord->sendRankingsUpdate($challenge->team);
             }
         } catch (\Exception $e) {
-            Log::error('Discord notification failed', ['error' => $e->getMessage(), 'challenge_id' => $challenge->id]);
+            Log::error('Discord notification failed', ['error' => $e->getMessage(), 'challenge_id' => $challenge->id ?? null]);
         }
     }
 };
 ?>
-
 
 <div x-data="{
     showNotification: false,
@@ -168,7 +257,7 @@ new class extends Component {
         <div class="flex items-center justify-between mb-4">
             <h1 class="text-xl font-bold text-gray-900 dark:text-white">Witness Challenge Outcomes</h1>
             <button
-                wire:click="refresh"
+                wire:click="loadChallenges"
                 class="px-3 py-1 text-sm text-gray-600 transition-colors dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
                 title="Refresh challenges">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -303,7 +392,7 @@ new class extends Component {
                                             <span wire:loading.remove wire:target="submitOutcome({{ $challenge->id }})">
                                                 Submit Outcome
                                             </span>
-                                            {{-- <span wire:loading wire:target="submitOutcome({{ $challenge->id }})">
+                                            <span wire:loading wire:target="submitOutcome({{ $challenge->id }})">
                                                 <svg class="inline w-4 h-4 mr-2 animate-spin" viewBox="0 0 24 24">
                                                     <circle class="opacity-25" cx="12" cy="12" r="10"
                                                         stroke="currentColor" stroke-width="4"></circle>
@@ -312,7 +401,7 @@ new class extends Component {
                                                     </path>
                                                 </svg>
                                                 Processing...
-                                            </span> --}}
+                                            </span>
                                         </button>
                                     </div>
                                 </div>

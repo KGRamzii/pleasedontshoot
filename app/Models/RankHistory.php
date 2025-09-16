@@ -8,6 +8,7 @@ class RankHistory extends Model
 {
     protected $fillable = [
         'user_id',
+        'team_id',
         'previous_rank',
         'new_rank',
         'challenge_id', // Corrected spelling
