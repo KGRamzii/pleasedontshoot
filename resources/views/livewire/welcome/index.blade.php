@@ -5,6 +5,8 @@ use App\Models\User;
 use App\Models\Team;
 use App\Models\Challenge;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use App\Models\RankHistory;
 
 new class extends Component {
@@ -16,81 +18,218 @@ new class extends Component {
 
     public function mount()
     {
-        $this->loadTopRankedUsers();
-        $this->loadRecentMatches();
-        $this->loadStats();
+        // Load all data in a single optimized method
+        $this->loadAllData();
     }
 
-    public function loadTopRankedUsers()
+    public function loadAllData()
     {
-        $team = Auth::check() ? Auth::user()->teams()->first() : null;
+        $user = Auth::user();
+        $userTeam = null;
 
-        if ($team) {
-            \Log::info('Loading top ranked users - code updated');
-
-            $this->topRankedUsers = $team->users()
-                ->withPivot('rank')
-                ->orderByPivot('rank', 'asc')
-                ->take(3)
-                ->get();
-        } else {
-            // For non-authenticated users, show top players from all teams (example)
-            $this->topRankedUsers = collect();
-            \Log::info('No team found - returning empty collection');
+        // Get user's team efficiently if authenticated
+        if ($user) {
+            $userTeam = Cache::remember("user_team_{$user->id}", 300, function () use ($user) {
+                return $user->teams()
+                    ->select('teams.id', 'teams.name')
+                    ->first();
+            });
         }
-    }
 
-    public function loadRecentMatches()
-    {
-        $this->recentMatches = Challenge::where('status', 'completed')
-            ->with(['challenger', 'opponent', 'witness', 'rankHistories'])
-            ->latest()
-            ->take(5)
-            ->get()
-            ->map(function ($match) {
-                $rankHistories = $match->rankHistories->groupBy('user_id');
+        // Load all data with a single cache operation
+        $cacheData = Cache::remember('homepage_data', 300, function () use ($userTeam) {
+            $data = [];
 
-                foreach ($rankHistories as $userId => $histories) {
-                    $history = $histories->first();
+            // Load stats in a single query
+            $stats = DB::select("
+                SELECT
+                    (SELECT COUNT(*) FROM users) as total_players,
+                    (SELECT COUNT(*) FROM challenges WHERE status = 'completed') as total_matches,
+                    (SELECT COUNT(*) FROM teams) as active_teams
+            ")[0];
 
-                    if ($history->previous_rank !== $history->new_rank) {
-                        if ($history->previous_rank > $history->new_rank) {
-                            $match->winner = User::find($userId);
-                            $match->winner_rank_change = [
-                                'from' => $history->previous_rank,
-                                'to'   => $history->new_rank,
-                                'movement' => 'up',
-                            ];
-                        } else {
-                            $match->loser = User::find($userId);
-                            $match->loser_rank_change = [
-                                'from' => $history->previous_rank,
-                                'to'   => $history->new_rank,
-                                'movement' => 'down',
-                            ];
+            $data['stats'] = [
+                'totalPlayers' => $stats->total_players,
+                'totalMatches' => $stats->total_matches,
+                'activeTeams' => $stats->active_teams
+            ];
+
+            // Load top ranked users for the team (if user has a team)
+            if ($userTeam) {
+                $data['topRankedUsers'] = DB::table('team_user')
+                    ->join('users', 'team_user.user_id', '=', 'users.id')
+                    ->where('team_user.team_id', $userTeam->id)
+                    ->where('team_user.status', 'approved')
+                    ->select('users.id', 'users.name', 'team_user.rank')
+                    ->orderBy('team_user.rank', 'asc')
+                    ->limit(3)
+                    ->get()
+                    ->map(function ($user) {
+                        return (object) [
+                            'id' => $user->id,
+                            'name' => $user->name,
+                            'pivot' => (object) ['rank' => $user->rank]
+                        ];
+                    });
+            } else {
+                $data['topRankedUsers'] = collect();
+            }
+
+            // Load recent matches with all related data in optimized query
+            $recentChallenges = DB::table('challenges as c')
+                ->join('users as challenger', 'c.challenger_id', '=', 'challenger.id')
+                ->join('users as opponent', 'c.opponent_id', '=', 'opponent.id')
+                ->join('users as witness', 'c.witness_id', '=', 'witness.id')
+                ->where('c.status', 'completed')
+                ->select([
+                    'c.id',
+                    'c.challenger_id',
+                    'c.opponent_id',
+                    'c.witness_id',
+                    'c.updated_at',
+                    'challenger.name as challenger_name',
+                    'opponent.name as opponent_name',
+                    'witness.name as witness_name'
+                ])
+                ->orderBy('c.updated_at', 'desc')
+                ->limit(5)
+                ->get();
+
+            // Get all rank histories for these challenges in one query
+            $challengeIds = $recentChallenges->pluck('id');
+            $rankHistories = collect();
+
+            if ($challengeIds->isNotEmpty()) {
+                $rankHistories = DB::table('rank_histories')
+                    ->whereIn('challenge_id', $challengeIds)
+                    ->select('challenge_id', 'user_id', 'previous_rank', 'new_rank')
+                    ->get()
+                    ->groupBy('challenge_id');
+            }
+
+            // Process matches with rank data
+            $data['recentMatches'] = $recentChallenges->map(function ($challenge) use ($rankHistories) {
+                $match = (object) [
+                    'id' => $challenge->id,
+                    'challenger' => (object) ['name' => $challenge->challenger_name],
+                    'opponent' => (object) ['name' => $challenge->opponent_name],
+                    'witness' => (object) ['name' => $challenge->witness_name],
+                    'updated_at' => $challenge->updated_at,
+                    'winner' => null,
+                    'loser' => null,
+                    'winner_rank_change' => null,
+                    'loser_rank_change' => null
+                ];
+
+                // Process rank histories for this challenge
+                $histories = $rankHistories->get($challenge->id, collect());
+
+                // Check if ranks were actually swapped by comparing both players
+                if ($histories->count() === 2) {
+                    $history1 = $histories->first();
+                    $history2 = $histories->last();
+
+                    // Determine winner based on who took the better rank position
+                    $winner_history = null;
+                    $loser_history = null;
+
+                    // If player 1's new rank is better (lower number) than player 2's new rank
+                    if ($history1->new_rank < $history2->new_rank) {
+                        $winner_history = $history1;
+                        $loser_history = $history2;
+                    } else if ($history2->new_rank < $history1->new_rank) {
+                        $winner_history = $history2;
+                        $loser_history = $history1;
+                    }
+                    // If new ranks are equal, check who improved more from their previous rank
+                    else if ($history1->new_rank === $history2->new_rank) {
+                        // Compare improvement (previous_rank - new_rank, higher = more improvement)
+                        $improvement1 = $history1->previous_rank - $history1->new_rank;
+                        $improvement2 = $history2->previous_rank - $history2->new_rank;
+
+                        if ($improvement1 > $improvement2) {
+                            $winner_history = $history1;
+                            $loser_history = $history2;
+                        } else if ($improvement2 > $improvement1) {
+                            $winner_history = $history2;
+                            $loser_history = $history1;
                         }
-                    } else {
-                        if ($history->previous_rank == $history->new_rank) {
-                            if (!isset($match->winner)) {
-                                $match->winner = User::find($userId);
-                            } else {
-                                $match->loser = User::find($userId);
-                            }
+                        // If equal improvement, it's a tie - no clear winner
+                    }
+
+                    if ($winner_history && $loser_history) {
+                        // Set winner
+                        $winnerName = $winner_history->user_id == $challenge->challenger_id ?
+                            $challenge->challenger_name : $challenge->opponent_name;
+                        $match->winner = (object) ['name' => $winnerName];
+                        $match->winner_rank_change = [
+                            'from' => $winner_history->previous_rank,
+                            'to' => $winner_history->new_rank,
+                            'movement' => $winner_history->previous_rank > $winner_history->new_rank ? 'up' : 'down'
+                        ];
+
+                        // Set loser
+                        $loserName = $loser_history->user_id == $challenge->challenger_id ?
+                            $challenge->challenger_name : $challenge->opponent_name;
+                        $match->loser = (object) ['name' => $loserName];
+                        $match->loser_rank_change = [
+                            'from' => $loser_history->previous_rank,
+                            'to' => $loser_history->new_rank,
+                            'movement' => $loser_history->previous_rank > $loser_history->new_rank ? 'up' : 'down'
+                        ];
+                    }
+                } else {
+                    // Fallback for single history record or unexpected data
+                    foreach ($histories as $history) {
+                        $rankChange = [
+                            'from' => $history->previous_rank,
+                            'to' => $history->new_rank,
+                            'movement' => $history->previous_rank > $history->new_rank ? 'up' : 'down'
+                        ];
+
+                        $userName = $history->user_id == $challenge->challenger_id ?
+                            $challenge->challenger_name : $challenge->opponent_name;
+
+                        // If rank improved, likely winner; if worse, likely loser
+                        if ($history->previous_rank > $history->new_rank) {
+                            $match->winner = (object) ['name' => $userName];
+                            $match->winner_rank_change = $rankChange;
+                        } else if ($history->previous_rank < $history->new_rank) {
+                            $match->loser = (object) ['name' => $userName];
+                            $match->loser_rank_change = $rankChange;
                         }
                     }
                 }
 
                 return $match;
             });
+
+            return $data;
+        });
+
+        // Assign cached data to component properties
+        $this->totalPlayers = $cacheData['stats']['totalPlayers'];
+        $this->totalMatches = $cacheData['stats']['totalMatches'];
+        $this->activeTeams = $cacheData['stats']['activeTeams'];
+        $this->topRankedUsers = $cacheData['topRankedUsers'];
+        $this->recentMatches = $cacheData['recentMatches'];
+
+        \Log::info('Homepage data loaded from cache', [
+            'top_users_count' => $this->topRankedUsers->count(),
+            'recent_matches_count' => $this->recentMatches->count(),
+        ]);
     }
 
-    public function loadStats()
+    // Method to refresh data (useful for testing or manual refresh)
+    public function refreshData()
     {
-        $this->totalPlayers = User::count();
-        $this->totalMatches = Challenge::where('status', 'completed')->count();
-        $this->activeTeams = Team::count();
+        Cache::forget('homepage_data');
+        if (Auth::check()) {
+            Cache::forget("user_team_" . Auth::id());
+        }
+        $this->loadAllData();
     }
-};?>
+}; ?>
 
 <div class="min-h-screen bg-gray-900">
     <!-- Hero Section -->
@@ -289,13 +428,14 @@ new class extends Component {
                                 <span class="text-lg font-semibold text-white">{{ optional($match->opponent)->name }}</span>
                             </div>
                             <div class="text-sm text-gray-400">
-                                {{ $match->updated_at->format('M d, Y') }} • Witnessed by {{ optional($match->witness)->name }}
+                                {{ \Carbon\Carbon::parse($match->updated_at)->format('M d, Y') }} • Witnessed by {{ optional($match->witness)->name }}
                             </div>
                         </div>
 
                         <!-- Match Results -->
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            @isset($match->winner)
+                            @if(isset($match->winner) && isset($match->loser))
+                                <!-- Winner -->
                                 <div class="p-4 border rounded-lg bg-green-500/10 border-green-500/30">
                                     <div class="flex items-center space-x-3">
                                         <div class="text-2xl">🏆</div>
@@ -304,15 +444,18 @@ new class extends Component {
                                             @isset($match->winner_rank_change)
                                                 <p class="text-sm text-green-400">
                                                     Rank: {{ $match->winner_rank_change['from'] }} → {{ $match->winner_rank_change['to'] }}
-                                                    <span class="text-green-300">(↗️ Moved {{ $match->winner_rank_change['movement'] }})</span>
+                                                    @if($match->winner_rank_change['from'] != $match->winner_rank_change['to'])
+                                                        <span class="text-green-300">(↗️ Moved {{ $match->winner_rank_change['movement'] }})</span>
+                                                    @else
+                                                        <span class="text-gray-300">(No rank change)</span>
+                                                    @endif
                                                 </p>
                                             @endif
                                         </div>
                                     </div>
                                 </div>
-                            @endisset
 
-                            @isset($match->loser)
+                                <!-- Loser -->
                                 <div class="p-4 border rounded-lg bg-red-500/10 border-red-500/30">
                                     <div class="flex items-center space-x-3">
                                         <div class="text-2xl">💥</div>
@@ -321,13 +464,35 @@ new class extends Component {
                                             @isset($match->loser_rank_change)
                                                 <p class="text-sm text-red-400">
                                                     Rank: {{ $match->loser_rank_change['from'] }} → {{ $match->loser_rank_change['to'] }}
-                                                    <span class="text-red-300">(↘️ Moved {{ $match->loser_rank_change['movement'] }})</span>
+                                                    @if($match->loser_rank_change['from'] != $match->loser_rank_change['to'])
+                                                        <span class="text-red-300">(↘️ Moved {{ $match->loser_rank_change['movement'] }})</span>
+                                                    @else
+                                                        <span class="text-gray-300">(No rank change)</span>
+                                                    @endif
                                                 </p>
                                             @endif
                                         </div>
                                     </div>
                                 </div>
-                            @endisset
+                            @else
+                                <!-- No Clear Winner/Loser or Incomplete Data -->
+                                <div class="col-span-full">
+                                    <div class="p-4 border rounded-lg bg-gray-500/10 border-gray-500/30">
+                                        <div class="flex items-center justify-center space-x-3">
+                                            <div class="text-2xl">⚖️</div>
+                                            <div class="text-center">
+                                                <p class="font-semibold text-gray-300">Match Completed</p>
+                                                <p class="text-sm text-gray-400">
+                                                    {{ $match->challenger->name }} vs {{ $match->opponent->name }}
+                                                </p>
+                                                <p class="mt-1 text-xs text-gray-500">
+                                                    No rank changes occurred or result data unavailable
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @endforeach
@@ -399,16 +564,4 @@ new class extends Component {
         </div>
     </div>
     @endguest
-
-    <!-- Footer -->
-    <footer class="border-t border-gray-800 bg-gray-900/80 backdrop-blur-sm">
-        <div class="px-4 py-12 mx-auto max-w-7xl sm:px-6 lg:px-8">
-            <div class="text-center">
-                <div class="mb-4 text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-500">
-                    Valorant Pink Slip
-                </div>
-
-            </div>
-        </div>
-    </footer>
 </div>

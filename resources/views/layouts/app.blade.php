@@ -61,6 +61,7 @@
 <main>
     {{ $slot }}
 </main>
+<livewire:layout.footer />
 </div>
 </body>
 
