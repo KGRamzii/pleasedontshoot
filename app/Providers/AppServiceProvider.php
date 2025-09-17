@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Team;
 use App\Policies\TeamPolicy;
 use App\Services\DiscordService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\ServiceProvider;
@@ -30,6 +31,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Model::automaticallyEagerLoadRelationships();
+
         Gate::define('removeMember', [TeamPolicy::class, 'removeMember']);
 
         // Register Discord notification channel

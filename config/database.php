@@ -95,12 +95,18 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => 'prefer',
-            'persistent' => env('DB_PERSISTENT', true),
             'options' => [
-                PDO::ATTR_PERSISTENT => env('DB_PERSISTENT', true),
-                PDO::ATTR_EMULATE_PREPARES => true,
+                // Reduce connection negotiation time
+                PDO::ATTR_PERSISTENT => false, // Avoid persistent connections in serverless
+                PDO::ATTR_EMULATE_PREPARES => false,
                 PDO::ATTR_STRINGIFY_FETCHES => false,
+                PDO::ATTR_TIMEOUT => 5, // Quick timeout for cold starts
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                // Skip unnecessary connection setup
+                PDO::MYSQL_ATTR_INIT_COMMAND => '',
             ],
+            // Lazy connection - only connect when needed
+            'sticky' => false,
         ],
 
         'sqlsrv' => [
