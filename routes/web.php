@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 
 
-Route::view('/', 'welcome');
+Route::view('/', 'welcome')->name('welcome');
 
 Route::view('dashboard', 'dashboard')
 
@@ -84,7 +84,7 @@ Route::post('/send-discord', function (Request $request) {
         'channel_id' => $request->channel_id,
         'message' => $request->message
     ]);
-    
+
     if ($response->successful()) {
         return back()->with('success', 'Message sent to Discord!');
     } else {

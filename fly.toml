@@ -31,7 +31,7 @@ console_command = 'php /var/www/html/artisan tinker'
   REDIS_HOST='127.0.0.1'
   REDIS_PASSWORD='null'
   REDIS_PORT='6379'
-  
+
 
 
   DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1296386814730440736/L-3ZrhWi-IsFiZ4a40PnpDTcalEoV57Ojy0i2Pcsng4wi-5P46dF_M3Be4UtETUnwsps'
@@ -57,7 +57,7 @@ console_command = 'php /var/www/html/artisan tinker'
 
 
 [deploy]
-  strategy = "immediate"
+  strategy = "rolling"
   release_command = "php artisan migrate --force"
 
 

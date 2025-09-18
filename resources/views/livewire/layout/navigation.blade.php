@@ -14,7 +14,7 @@ new class extends Component {
     {
         // Fetch teams that the current user belongs to
         $this->teams = auth()->user()->teams;
-        
+
         // Get pending team invitations count
         $this->pendingInvitations = DB::table('team_user')
             ->where('user_id', auth()->id())
@@ -57,7 +57,7 @@ new class extends Component {
             <div class="flex items-center">
                 <!-- Logo -->
                 <div class="flex items-center shrink-0">
-                    <a href="{{ route('dashboard') }}" wire:navigate>
+                    <a href="{{ route('welcome') }}" wire:navigate>
                         <x-application-logo class="block w-auto text-gray-800 fill-current h-14 dark:text-gray-200" />
                     </a>
                 </div>
@@ -85,7 +85,7 @@ new class extends Component {
 
 
             <!-- Right Side -->
-            <div class="hidden sm:flex sm:items-center sm:ms-6 space-x-4">
+            <div class="hidden space-x-4 sm:flex sm:items-center sm:ms-6">
                 <!-- Team Invitations Notification -->
                 @if($pendingInvitations > 0)
                     <a href="{{ route('teams.invitations') }}" class="relative inline-flex items-center p-2">
@@ -118,7 +118,7 @@ new class extends Component {
                     <x-slot name="content">
                         <!-- Create New Team Button -->
                         <button wire:click="$dispatch('open-modal')"
-                            class="block w-full text-left px-4 py-2 text-sm leading-5 text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+                            class="block w-full px-4 py-2 text-sm leading-5 text-left text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
                             {{ __('Create New Team') }}
                         </button>
 
@@ -173,12 +173,12 @@ new class extends Component {
             <div class="fixed inset-0 bg-gray-600 bg-opacity-75" @click="open = false"></div>
 
             <!-- Menu panel -->
-            <div class="fixed inset-y-0 right-0 max-w-xs w-full bg-white dark:bg-gray-800 shadow-xl flex flex-col">
+            <div class="fixed inset-y-0 right-0 flex flex-col w-full max-w-xs bg-white shadow-xl dark:bg-gray-800">
                 <!-- Close button -->
-                <div class="absolute top-0 right-0 -mr-12 pt-2">
-                    <button @click="open = false" class="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white">
+                <div class="absolute top-0 right-0 pt-2 -mr-12">
+                    <button @click="open = false" class="flex items-center justify-center w-10 h-10 ml-1 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white">
                         <span class="sr-only">Close sidebar</span>
-                        <svg class="h-6 w-6 text-white" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                        <svg class="w-6 h-6 text-white" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
@@ -188,9 +188,9 @@ new class extends Component {
                 <div class="flex-1 h-0 overflow-y-auto">
                     <div class="p-4">
                         <!-- User info -->
-                        <div class="flex items-center mb-6 px-2">
+                        <div class="flex items-center px-2 mb-6">
                             <div class="flex-shrink-0">
-                                <div class="h-12 w-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                                <div class="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-500">
                                     <span class="text-xl font-bold text-white">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
                                 </div>
                             </div>
@@ -203,31 +203,31 @@ new class extends Component {
                         <!-- Navigation Links -->
                         <div class="space-y-1">
                             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate
-                                class="block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200">
+                                class="block px-3 py-2 text-base font-medium transition-colors duration-200 rounded-md">
                                 {{ __('Dashboard') }}
                             </x-responsive-nav-link>
                             <x-responsive-nav-link :href="route('challenges')" :active="request()->routeIs('challenges')" wire:navigate
-                                class="block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200">
+                                class="block px-3 py-2 text-base font-medium transition-colors duration-200 rounded-md">
                                 {{ __('Pink Slip') }}
                             </x-responsive-nav-link>
                         </div>
 
                         <!-- Teams Section -->
                         <div class="mt-8">
-                            <h3 class="px-3 text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            <h3 class="px-3 text-sm font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                                 {{ __('Teams') }}
                             </h3>
                             <div class="mt-2 space-y-1">
                                 <button wire:click="$dispatch('open-modal')"
-                                    class="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors duration-200 group">
-                                    <svg class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    class="flex items-center w-full px-3 py-2 text-sm font-medium text-gray-600 transition-colors duration-200 rounded-md dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                                    <svg class="w-5 h-5 mr-3 text-gray-400 group-hover:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                                     </svg>
                                     {{ __('Create New Team') }}
                                 </button>
                                 @foreach ($teams as $team)
                                     <a href="{{ route('teams.show', $team->id) }}" wire:navigate
-                                        class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors duration-200">
+                                        class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 transition-colors duration-200 rounded-md dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                                         <span class="truncate">{{ $team->name }}</span>
                                     </a>
                                 @endforeach
@@ -235,14 +235,14 @@ new class extends Component {
                         </div>
 
                         <!-- Footer Links -->
-                        <div class="mt-8 border-t border-gray-200 dark:border-gray-600 pt-4 space-y-1">
+                        <div class="pt-4 mt-8 space-y-1 border-t border-gray-200 dark:border-gray-600">
                             <x-responsive-nav-link :href="route('profile')" wire:navigate
-                                class="block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200">
+                                class="block px-3 py-2 text-base font-medium transition-colors duration-200 rounded-md">
                                 {{ __('Profile') }}
                             </x-responsive-nav-link>
                             <button wire:click="logout" class="w-full text-start">
                                 <x-responsive-nav-link
-                                    class="block px-3 py-2 rounded-md text-base font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200">
+                                    class="block px-3 py-2 text-base font-medium text-red-600 transition-colors duration-200 rounded-md dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
                                     {{ __('Log Out') }}
                                 </x-responsive-nav-link>
                             </button>
